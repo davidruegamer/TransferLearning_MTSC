@@ -1,1 +1,1 @@
-# TransferLearning_MTSC
+# Transfer Learning for Multivariate Time Series Classification
