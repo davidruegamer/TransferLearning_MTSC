@@ -68,6 +68,9 @@ class Classifier_FCN:
 		model = keras.models.load_model(self.output_directory+'best_model.hdf5')
 
 		y_pred = model.predict(x_val)
+		
+		# save predictions
+    #np.save(self.output_directory + 'y_pred.npy', y_pred)
 
 		# convert the predicted from binary to integer 
 		y_pred = np.argmax(y_pred , axis=1)

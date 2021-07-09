@@ -126,7 +126,7 @@ class Classifier_INCEPTION:
                               return_df_metrics=False)
 
         # save predictions
-        np.save(self.output_directory + 'y_pred.npy', y_pred)
+        #np.save(self.output_directory + 'y_pred.npy', y_pred)
 
         # convert the predicted from binary to integer
         y_pred = np.argmax(y_pred, axis=1)

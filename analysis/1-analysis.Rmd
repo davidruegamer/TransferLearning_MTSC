@@ -1,0 +1,444 @@
+---
+title: "1-analysis"
+author: "Bernard"
+date: "2021-07-08"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+# Package
+
+```{r}
+library(caret)
+library(abind)
+library(keras)
+library(reticulate)
+library(xgboost)
+library(glmnet)
+library (mltest)
+library (FDboost)
+library (tidyverse)
+
+np <- import ("numpy")
+```
+
+# Data
+
+```{r}
+#data <- readRDS("../data/trans_learn.RDS")
+data <- readRDS("data/trans_learn.RDS")
+
+gaitrec <- data$gaitrec
+gaitrec$grp <- as.factor(gaitrec$grp)
+gait.nclasses <- nlevels(gaitrec$grp)
+gaitrec$grp <- as.numeric(gaitrec$grp) - 1
+
+# Binarize outcomes
+gaitrec$grp <- ifelse (gaitrec$grp == 0, 0, 1)
+gait.nclasses <- n_distinct(gaitrec$grp)
+
+
+pfps <- data$pfps
+pfps$grp <- as.factor(pfps$grp)
+pfpsnclasses <- nlevels(pfps$grp)
+pfps$grp <- as.numeric(pfps$grp) - 1
+```
+
+# Split and pre-process
+
+## Gaitrec
+
+```{r}
+set.seed(2021-7-5)
+gait.train.index <- createDataPartition(gaitrec$grp, p = .8, list = FALSE)
+gait.y_train <- to_categorical(gaitrec$grp[gait.train.index], num_classes = gait.nclasses)
+gait.y_test <- to_categorical(gaitrec$grp[-gait.train.index], num_classes = gait.nclasses)
+
+gait.x_train <- gaitrec[-1] %>%
+  map (as.matrix) %>%
+  map_if (is.matrix,  ~ as.matrix(.[gait.train.index,]))
+  
+gait.x_test <-  gaitrec[-1] %>%
+  map (as.matrix) %>%
+  map_if (is.matrix,  ~ as.matrix(.[-gait.train.index,]))
+
+
+# Get scales
+
+get_mean <- gait.x_train %>%
+  map (apply, 2, mean)
+
+get_sd <- gait.x_train %>%
+  map (apply, 2, sd)
+
+for (n in seq_along (gait.x_train)) {
+
+  gait.x_train[[n]] <- scale (gait.x_train[[n]], center = get_mean[[n]], scale = get_sd[[n]])
+  gait.x_test [[n]] <- scale (gait.x_test [[n]], center = get_mean[[n]], scale = get_sd[[n]])
+
+}
+
+gait.x_train.array <- abind(gait.x_train, along=3)
+gait.x_test.array  <- abind(gait.x_test, along=3)
+
+
+```
+
+## PFPS
+
+```{r}
+set.seed(2021-7-5)
+pfps.train.index <- createDataPartition(pfps$grp, p = .8, list = FALSE)
+pfps.y_train <- to_categorical(pfps$grp[pfps.train.index], num_classes = pfpsnclasses)
+pfps.y_test <- to_categorical(pfps$grp[-pfps.train.index], num_classes = pfpsnclasses)
+
+pfps.x_train <- pfps[-7] %>%
+  map (as.matrix) %>%
+  map_if (is.matrix,  ~ as.matrix(.[pfps.train.index,]))
+  
+pfps.x_test <-  pfps[-7] %>%
+  map (as.matrix) %>%
+  map_if (is.matrix,  ~ as.matrix(.[-pfps.train.index,]))
+
+
+# Get scales
+
+get_mean <- pfps.x_train %>%
+  map (apply, 2, mean)
+
+get_sd <- pfps.x_train %>%
+  map (apply, 2, sd)
+
+for (n in seq_along (pfps.x_train)) {
+  
+  # Removed last column as bilateral asymmetry means the last column may be zero  
+
+  pfps.x_train[[n]] <- scale (pfps.x_train[[n]], center = get_mean[[n]], scale = get_sd[[n]])[,-101]
+  pfps.x_test [[n]] <- scale (pfps.x_test [[n]], center = get_mean[[n]], scale = get_sd[[n]])[,-101]
+
+}
+
+pfps.x_train.array <- abind(pfps.x_train, along=3)
+pfps.x_test.array  <- abind(pfps.x_test, along=3)
+```
+
+
+# Gaitrec analysis
+
+## InceptionTime
+
+```{r}
+inceptionNet <- import_from_path("inceptionnet", path = "code/")
+mod <- inceptionNet$Classifier_INCEPTION(output_directory = "output/inception/",
+                                         input_shape = dim(gait.x_train.array)[-1],
+                                         nb_classes = gait.nclasses,
+                                         nb_epochs = 100L,
+                                         verbose = TRUE,
+                                         depth = 3L,
+                                         nb_filters = 8L,
+                                         batch_size = 128L,
+                                         lr = 0.00001)
+
+y_pred_in <- mod$fit(gait.x_train.array, 
+                     gait.y_train, 
+                     gait.x_test.array,
+                     gait.y_test, 
+                     gait.y_test)
+
+# check accuracy
+
+pred_in <- np$load ("output/inception/y_pred.npy")
+class_in <- apply(pred_in,1,which.max)-1
+obs <- apply(gait.y_test,1,which.max)-1
+
+c(Acc = MLmetrics::Accuracy(class_in , obs),
+  AUC = MLmetrics::AUC (pred_in [,2] , obs),
+  Sens = MLmetrics::Sensitivity(class_in , obs),
+  Specs = MLmetrics::Specificity(class_in , obs)
+)
+```
+
+## Fully convolutional network
+
+```{r}
+fcn <- import_from_path("fcn", path = "code/")
+mod <- fcn$Classifier_FCN(output_directory = "output/fcn/",
+                          input_shape = dim(gait.x_train.array)[-1],
+                          nb_classes = gait.nclasses,
+                          verbose = TRUE,
+                          filters = 32,
+                          lr = 0.00001)
+
+y_pred_fcn <- mod$fit(gait.x_train.array, 
+                     gait.y_train, 
+                     gait.x_test.array,
+                     gait.y_test, 
+                     gait.y_test, 
+                     nb_epochs = 100L,
+                     batch_size = 64)
+
+# check accuracy
+mod_fcn <- load_model_hdf5("output/fcn/best_model.hdf5")
+pred_fcn <- mod_fcn$predict(gait.x_test.array)
+class_fcn <- apply(pred_fcn,1,which.max)-1
+
+c(Acc = MLmetrics::Accuracy(class_fcn , obs),
+  AUC = MLmetrics::AUC (pred_fcn[,2] , obs),
+  Sens = MLmetrics::Sensitivity(class_fcn, obs),
+  Specs = MLmetrics::Specificity(class_fcn, obs)
+)
+
+```
+
+## Xgboost
+
+```{r}
+d_train <- do.call("cbind", gait.x_train) %>% as.data.frame()
+d_test <- do.call("cbind", gait.x_test)%>% as.data.frame()
+
+names(d_train) <- names(d_test) <-
+  paste0(rep (names (gait.x_train), each = 101), ".", 1:101)
+
+
+y_d_train <- gaitrec$grp[gait.train.index]
+y_d_test <- gaitrec$grp[-gait.train.index]
+
+xgb_data <- xgb.DMatrix(data = model.matrix(~ ., data = d_train),
+                        label = matrix(y_d_train, ncol=1))
+xgb_data_test <- xgb.DMatrix(data = model.matrix(~ ., data = d_test),
+                             label = matrix(y_d_test, ncol=1))
+
+
+
+xgb_mod <- xgb.train(data = xgb_data,
+                     early_stopping_rounds = 20,
+                     nrounds = 5000,
+                     params = list(objective = "binary:logistic",
+                                    eval_metric = c("auc"),
+                                   num_class = 1),
+                     watchlist = list(eval = xgb_data_test),
+                     verbose = TRUE)
+
+# extract fit and prediction
+xgb_pred <- matrix(predict(xgb_mod, newdata = xgb_data_test),  byrow = T)
+class_xgb <- ifelse (xgb_pred > 0.5, 0, 1) %>% as.numeric ()
+
+c(Acc = MLmetrics::Accuracy(class_xgb, obs),
+  AUC = MLmetrics::AUC (xgb_pred, obs),
+  Sens = MLmetrics::Sensitivity(class_xgb, obs),
+  Specs = MLmetrics::Specificity(class_xgb,  obs)
+)
+
+```
+
+## FDboost
+
+```{r}
+
+funvars <- grep ("f_", names(gait.x_train), value = T)
+
+fd.train <- gait.x_train 
+fd.train$Sample = c(1:101) # index of time
+fd.train$grp <- factor (gait.y_train[,2])
+
+
+lhs = "grp ~ "
+
+fvars = funvars # or funvars or msvars
+
+rhs_fun <-  paste(paste0("bsignal(", funvars, ", s = Sample, differences = 1, df = 2)", collapse = " + "))
+
+rhs = paste(rhs_fun,
+            sep = "+")
+# transform the whole string to a formula
+form = as.formula( paste0(lhs, rhs))
+
+mod <- FDboost(
+  formula = form,
+  data = fd.train,
+  timeformula = NULL,
+  family = Binomial(),
+  # define the boosting specific parameters
+  # mstop:  set to a large number, such as 1000.
+  #         We will choose the optimal stoppting
+  #         iteration in the next step via cross-validation
+  # nu:     learning rate: 0.1 is a good default, which
+  #         works for most cases
+  control = boost_control(mstop = 10000,
+                          nu = .01))
+
+## Tuning to get mstop
+
+set.seed(2019-11-22) # better set seed for repoducibility
+folds = cv(rep(1, length(unique(mod$id))),
+           type = "kfold", B = 5, strata = fd.train$grp)
+
+# DR>
+cvr = cvrisk(mod,folds , grid = 1:10000)
+plot (cvr)
+
+(best_iteration = mstop(cvr))
+mod[best_iteration]
+
+pd <- predict(mod, newdata = gait.x_test, type = "class")
+prob <- predict(mod, newdata = gait.x_test, type = "response")
+
+c(Acc = MLmetrics::Accuracy(pd , obs),
+  AUC = MLmetrics::AUC (prob, obs),
+  Sens = MLmetrics::Sensitivity(pd , obs),
+  Specs = MLmetrics::Specificity(pd ,  obs)
+)
+
+```
+
+# PFPS analysis
+
+## InceptionTime
+
+```{r}
+mod <- inceptionNet$Classifier_INCEPTION(output_directory = "output/inception/pfps/",
+                                         input_shape = dim(pfps.x_train.array)[-1],
+                                         nb_classes = pfpsnclasses,
+                                         verbose = TRUE,
+                                         depth = 3L,
+                                         nb_filters = 8L,
+                                         nb_epochs = 100L,
+                                         batch_size = 128L,
+                                         lr = 0.00001)
+
+y_pred_in <- mod$fit(pfps.x_train.array, 
+                     pfps.y_train, 
+                     pfps.x_test.array,
+                     pfps.y_test, 
+                     pfps.y_test)
+
+# check accuracy
+
+pred_in <- np$load ("output/inception/pfps/y_pred.npy")
+class_in <- apply(pred_in,1,which.max)-1
+class_in <- y_pred_in
+obs <- apply(pfps.y_test,1,which.max)-1
+
+c(Acc = MLmetrics::Accuracy(class_in , obs),
+  AUC = MLmetrics::AUC (pred_in[,2] , obs),
+  Sens = MLmetrics::Sensitivity(class_in, obs),
+  Specs = MLmetrics::Specificity(class_in, obs)
+)
+
+```
+
+## Transfer learning
+
+```{r}
+
+# transer learn the previous model
+tl <- import_from_path("transfer_net", path = "code/")
+mod <- tl$load_freeze_transfer("output/fcn/", pfpsnclasses, lr = 0.01)
+mod$fit(x = pfps.x_train.array, y = pfps.y_train, epochs = 100L, verbose = TRUE)
+
+y_pred <- mod$predict(pfps.x_test.array)
+cbind(y_test[,2], y_pred[,2])
+# accuracy
+class_tl  <- apply(y_pred,1,which.max)-1
+obs <- apply(pfps.y_test,1,which.max)-1
+
+c(Acc = MLmetrics::Accuracy(class_tl  , obs),
+  AUC = MLmetrics::AUC (y_pred [,2] , obs),
+  Sens = MLmetrics::Sensitivity(class_tl , obs),
+  Specs = MLmetrics::Specificity(class_tl , obs)
+)
+
+```
+
+## FDboost
+
+```{r}
+
+funvars <- grep ("f_", names(pfps.x_train), value = T)
+
+fd.train <- pfps.x_train 
+fd.train$Sample = c(1:100) # index of time
+fd.train$grp <- factor (pfps.y_train[,2])
+
+
+lhs = "grp ~ "
+
+fvars = funvars # or funvars or msvars
+
+rhs_fun <-  paste(paste0("bsignal(", funvars, ", s = Sample, differences = 1, df = 3)", collapse = " + "))
+
+rhs = paste(rhs_fun,
+            sep = "+")
+# transform the whole string to a formula
+form = as.formula( paste0(lhs, rhs))
+
+mod <- FDboost(
+  formula = form,
+  data = fd.train,
+  timeformula = NULL,
+  family = Binomial(),
+  # define the boosting specific parameters
+  # mstop:  set to a large number, such as 1000.
+  #         We will choose the optimal stoppting
+  #         iteration in the next step via cross-validation
+  # nu:     learning rate: 0.1 is a good default, which
+  #         works for most cases
+  control = boost_control(mstop = 5000,
+                          nu = .1))
+
+## Tuning to get mstop
+
+set.seed(2019-11-22) # better set seed for repoducibility
+folds = cv(rep(1, length(unique(mod$id))),
+           type = "kfold", B = 5, strata = fd.train$grp)
+
+# DR>
+cvr = cvrisk(mod,folds , grid = 1:5000)
+plot (cvr)
+
+(best_iteration = mstop(cvr))
+mod[best_iteration]
+
+pd <- predict(mod, newdata = pfps.x_test, type = "class")
+prob <- predict(mod, newdata = pfps.x_test, type = "response")
+
+c(Acc = MLmetrics::Accuracy(pd , obs),
+  AUC = MLmetrics::AUC (prob  , obs),
+  Sens = MLmetrics::Sensitivity(pd , obs),
+  Specs = MLmetrics::Specificity(pd , obs)
+)
+```
+
+## Lasso
+
+```{r}
+######################################## LASSO ###########################################
+
+d_train <- do.call("cbind", pfps.x_train) %>% as.matrix()
+d_test <- do.call("cbind", pfps.x_test)  %>% as.matrix()
+
+names(d_train) <- names(d_test) <-
+  paste0(rep (names (pfps.x_train), each = 100), ".", 1:100)
+
+
+y_d_train <- pfps$grp[pfps.train.index] %>% factor ()
+y_d_test <- pfps$grp[-pfps.train.index]
+
+set.seed(42)
+cvl1 <- cv.glmnet(x = d_train, y = y_d_train, family="binomial")
+plot(cvl1)
+
+# this is in-sample!
+y_pred <- plogis(predict(cvl1, newx = d_test, s = "lambda.min"))
+
+class_lasso  <- ifelse (y_pred < 0.5, 0, 1)
+
+
+c(Acc = MLmetrics::Accuracy(class_lasso , obs),
+  AUC = MLmetrics::AUC (y_pred, obs),
+  Sens = MLmetrics::Sensitivity(class_lasso, obs),
+  Specs = MLmetrics::Specificity(class_lasso, obs)
+)
+```
+
