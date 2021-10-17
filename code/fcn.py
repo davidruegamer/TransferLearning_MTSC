@@ -6,7 +6,7 @@ import time
 class Classifier_FCN:
 
 	def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, 
-	  lr = 0.00001, filters=128):
+	  lr = 0.00001, filters=128, patience=50, monitor_metric='val_accuracy'):
 		self.output_directory = output_directory
 		if build == True:
 			self.model = self.build_model(input_shape, nb_classes, lr, filters)
@@ -48,7 +48,10 @@ class Classifier_FCN:
 		model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss', 
 			save_best_only=True)
 
-		self.callbacks = [reduce_lr,model_checkpoint]
+		es = tf.keras.callbacks.EarlyStopping(monitor=monitor_metric, patience=patience, verbose=0,
+											  restore_best_weights=True)
+
+		self.callbacks = [reduce_lr,model_checkpoint,es]
 
 		return model 
 

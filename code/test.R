@@ -1,3 +1,5 @@
+rm(list=ls())
+
 library(caret)
 library(abind)
 library(keras)
@@ -6,6 +8,7 @@ library(xgboost)
 library(glmnet)
 library (mltest)
 library (FDboost)
+library(purrr)
 
 np <- import ("numpy")
 
@@ -39,7 +42,39 @@ x_gaitrec <- abind(gaitrec[-1], along=3)
 x_train <- x_gaitrec[train.index,,]
 x_test  <- x_gaitrec[-train.index,,]
 
+
 ######################################### Gaitrec data ################################################
+
+######################################### Augmentation ################################################
+
+# Clone https://github.com/uchidalab/time_series_augmentation
+# for augmentation and wrap
+
+aug <- import_from_path("augmentation", "code/")
+source("code/list_to_args.R")
+args <- list_to_args(
+  augmentation_ratio = 4L, # how often to apply augmentation
+  jitter=TRUE,
+  scaling=FALSE,
+  permutation=FALSE,
+  randompermutation=FALSE,
+  magwarp=FALSE,
+  timewarp=FALSE,
+  windowslice=FALSE,
+  windowwarp=FALSE,
+  rotation=FALSE,
+  spawner=FALSE,
+  dtwwarp=FALSE,
+  shapedtwwarp=FALSE,
+  wdba=FALSE,
+  discdtw=FALSE,
+  discsdtw=FALSE
+)
+
+res = aug$run_augmentation(x_train, y_train, args)
+x_train_aug <- res[[1]]
+y_train_aug <- res[[2]]
+
 
 ############################# Inception Time ##########################################################
 
@@ -55,19 +90,53 @@ mod <- inceptionNet$Classifier_INCEPTION(output_directory = "output/inception/",
                                          depth = 3L,
                                          nb_filters = 8L,
                                          batch_size = 128L,
-                                         lr = 0.00001)
+                                         lr = 0.00001,
+                                         nb_epochs = 750L)
 
 y_pred_in <- mod$fit(x_train, y_train, x_test, y_test, y_test)
 
 # check accuracy
 
-pred_in <- np$load ("output/inception/y_pred.npy")
-pred_in <- apply(pred_in,1,which.max)-1
+# pred_in <- np$load ("output/inception/y_pred.npy")
+# pred_in <- apply(y_pred_in,1,which.max)-1
 obs <- apply(y_test,1,which.max)-1
 
-ml_test (pred_in,
-         obs,
-         output.as.table = TRUE)
+metrics <- ml_test (y_pred_in,
+                    obs,
+                    output.as.table = TRUE)
+
+f1_wo_aug <- mean(metrics$F1)
+acc_wo_aug <- mean(metrics$balanced.accuracy)
+
+## with augmentation
+
+mod <- inceptionNet$Classifier_INCEPTION(output_directory = "output/inception/",
+                                         input_shape = dim(x_gaitrec)[-1],
+                                         nb_classes = nclasses,
+                                         verbose = TRUE,
+                                         depth = 3L,
+                                         nb_filters = 8L,
+                                         batch_size = 128L,
+                                         lr = 0.00001,
+                                         nb_epochs = 750L)
+
+y_pred_in <- mod$fit(x_train_aug, y_train_aug, x_test, y_test, y_test)
+
+# check accuracy
+
+# pred_in <- np$load ("output/inception/y_pred.npy")
+# pred_in <- apply(y_pred_in,1,which.max)-1
+obs <- apply(y_test,1,which.max)-1
+
+metrics <- ml_test (y_pred_in,
+                    obs,
+                    output.as.table = TRUE)
+
+f1_w_aug <- mean(metrics$F1)
+acc_w_aug <- mean(metrics$balanced.accuracy)
+
+cbind(c("w/o Aug", "w/ Aug"), F1=round(c(f1_wo_aug, f1_w_aug),3), 
+      Accuracy=round(c(acc_wo_aug, acc_w_aug),3))
 
 ############################# Full convolutional network #############################################
 fcn <- import_from_path("fcn", path = "code/")

@@ -338,7 +338,7 @@ mod <- tl$load_freeze_transfer("output/fcn/", pfpsnclasses, lr = 0.01)
 mod$fit(x = pfps.x_train.array, y = pfps.y_train, epochs = 100L, verbose = TRUE)
 
 y_pred <- mod$predict(pfps.x_test.array)
-cbind(y_test[,2], y_pred[,2])
+cbind(pfps.y_test[,2], y_pred[,2])
 # accuracy
 class_tl  <- apply(y_pred,1,which.max)-1
 obs <- apply(pfps.y_test,1,which.max)-1

@@ -6,7 +6,8 @@ import time
 class Classifier_INCEPTION:
 
     def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, batch_size=64, lr=0.001,
-                 nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=41, nb_epochs=1500):
+                 nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=41, nb_epochs=1500,
+                 patience=60, monitor_metric='val_accuracy'):
 
         self.output_directory = output_directory
 
@@ -15,7 +16,8 @@ class Classifier_INCEPTION:
         self.use_bottleneck = use_bottleneck
         self.depth = depth
         self.kernel_size = kernel_size - 1
-        self.callbacks = None
+        self.callbacks = [tf.keras.callbacks.EarlyStopping(monitor=monitor_metric, patience=patience, verbose=0,
+                                                          restore_best_weights=True)]
         self.batch_size = batch_size
         self.bottleneck_size = 32
         self.nb_epochs = nb_epochs
@@ -98,7 +100,7 @@ class Classifier_INCEPTION:
         model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss',
                                                            save_best_only=True)
 
-        self.callbacks = [reduce_lr, model_checkpoint]
+        self.callbacks = [reduce_lr, model_checkpoint] + self.callbacks
 
         return model
 
