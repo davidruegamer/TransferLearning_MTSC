@@ -361,17 +361,17 @@ def spawner(x, labels, sigma=0.05, verbose=0):
         if choices.size > 0:
             random_sample = x[np.random.choice(choices)]
             # SPAWNER splits the path into two randomly
-            path1 = dtw.dtw(pat[:random_points[i]], random_sample[:random_points[i]], dtw.RETURN_PATH,
+            path1 = dtw(pat[:random_points[i]], random_sample[:random_points[i]], RETURN_PATH,
                             slope_constraint="symmetric", window=window)
-            path2 = dtw.dtw(pat[random_points[i]:], random_sample[random_points[i]:], dtw.RETURN_PATH,
+            path2 = dtw(pat[random_points[i]:], random_sample[random_points[i]:], RETURN_PATH,
                             slope_constraint="symmetric", window=window)
             combined = np.concatenate((np.vstack(path1), np.vstack(path2 + random_points[i])), axis=1)
             if verbose:
                 print(random_points[i])
-                dtw_value, cost, DTW_map, path = dtw.dtw(pat, random_sample, return_flag=dtw.RETURN_ALL,
+                dtw_value, cost, DTW_map, path = dtw(pat, random_sample, return_flag=RETURN_ALL,
                                                          slope_constraint=slope_constraint, window=window)
-                dtw.draw_graph1d(cost, DTW_map, path, pat, random_sample)
-                dtw.draw_graph1d(cost, DTW_map, combined, pat, random_sample)
+                draw_graph1d(cost, DTW_map, path, pat, random_sample)
+                draw_graph1d(cost, DTW_map, combined, pat, random_sample)
             mean = np.mean([pat[combined[0]], random_sample[combined[1]]], axis=0)
             for dim in range(x.shape[2]):
                 ret[i, :, dim] = np.interp(orig_steps, np.linspace(0, x.shape[1] - 1., num=mean.shape[0]),
@@ -411,7 +411,7 @@ def wdba(x, labels, batch_size=6, slope_constraint="symmetric", use_window=True,
                     if p == s:
                         dtw_matrix[p, s] = 0.
                     else:
-                        dtw_matrix[p, s] = dtw.dtw(prototype, sample, dtw.RETURN_VALUE,
+                        dtw_matrix[p, s] = dtw(prototype, sample, RETURN_VALUE,
                                                    slope_constraint=slope_constraint, window=window)
 
             # get medoid
@@ -427,7 +427,7 @@ def wdba(x, labels, batch_size=6, slope_constraint="symmetric", use_window=True,
                     average_pattern += medoid_pattern
                     weighted_sums += np.ones_like(weighted_sums)
                 else:
-                    path = dtw.dtw(medoid_pattern, random_prototypes[nid], dtw.RETURN_PATH,
+                    path = dtw(medoid_pattern, random_prototypes[nid], RETURN_PATH,
                                    slope_constraint=slope_constraint, window=window)
                     dtw_value = dtw_matrix[medoid_id, nid]
                     warped = random_prototypes[nid, path[1]]
@@ -447,8 +447,8 @@ def wdba(x, labels, batch_size=6, slope_constraint="symmetric", use_window=True,
 
 def random_guided_warp(x, labels, slope_constraint="symmetric", use_window=True, dtw_type="normal", verbose=0):
     # use verbose = -1 to turn off warnings
-    # slope_constraint is for DTW. "symmetric" or "asymmetric"
-    # dtw_type is for shapeDTW or DTW. "normal" or "shape"
+    # slope_constraint is for  "symmetric" or "asymmetric"
+    # dtw_type is for shapeDTW or  "normal" or "shape"
 
     if use_window:
         window = np.ceil(x.shape[1] / 10.).astype(int)
@@ -468,10 +468,10 @@ def random_guided_warp(x, labels, slope_constraint="symmetric", use_window=True,
             random_prototype = x[np.random.choice(choices)]
 
             if dtw_type == "shape":
-                path = dtw.shape_dtw(random_prototype, pat, dtw.RETURN_PATH, slope_constraint=slope_constraint,
+                path = shape_dtw(random_prototype, pat, RETURN_PATH, slope_constraint=slope_constraint,
                                      window=window)
             else:
-                path = dtw.dtw(random_prototype, pat, dtw.RETURN_PATH, slope_constraint=slope_constraint, window=window)
+                path = dtw(random_prototype, pat, RETURN_PATH, slope_constraint=slope_constraint, window=window)
 
             # Time warp
             warped = pat[path[1]]
@@ -528,27 +528,27 @@ def discriminative_guided_warp(x, labels, batch_size=6, slope_constraint="symmet
                 for p, pos_prot in enumerate(positive_prototypes):
                     for ps, pos_samp in enumerate(positive_prototypes):
                         if p != ps:
-                            pos_aves[p] += (1. / (pos_k - 1.)) * dtw.shape_dtw(pos_prot, pos_samp, dtw.RETURN_VALUE,
+                            pos_aves[p] += (1. / (pos_k - 1.)) * shape_dtw(pos_prot, pos_samp, RETURN_VALUE,
                                                                                slope_constraint=slope_constraint,
                                                                                window=window)
                     for ns, neg_samp in enumerate(negative_prototypes):
-                        neg_aves[p] += (1. / neg_k) * dtw.shape_dtw(pos_prot, neg_samp, dtw.RETURN_VALUE,
+                        neg_aves[p] += (1. / neg_k) * shape_dtw(pos_prot, neg_samp, RETURN_VALUE,
                                                                     slope_constraint=slope_constraint, window=window)
                 selected_id = np.argmax(neg_aves - pos_aves)
-                path = dtw.shape_dtw(positive_prototypes[selected_id], pat, dtw.RETURN_PATH,
+                path = shape_dtw(positive_prototypes[selected_id], pat, RETURN_PATH,
                                      slope_constraint=slope_constraint, window=window)
             else:
                 for p, pos_prot in enumerate(positive_prototypes):
                     for ps, pos_samp in enumerate(positive_prototypes):
                         if p != ps:
-                            pos_aves[p] += (1. / (pos_k - 1.)) * dtw.dtw(pos_prot, pos_samp, dtw.RETURN_VALUE,
+                            pos_aves[p] += (1. / (pos_k - 1.)) * dtw(pos_prot, pos_samp, RETURN_VALUE,
                                                                          slope_constraint=slope_constraint,
                                                                          window=window)
                     for ns, neg_samp in enumerate(negative_prototypes):
-                        neg_aves[p] += (1. / neg_k) * dtw.dtw(pos_prot, neg_samp, dtw.RETURN_VALUE,
+                        neg_aves[p] += (1. / neg_k) * dtw(pos_prot, neg_samp, RETURN_VALUE,
                                                               slope_constraint=slope_constraint, window=window)
                 selected_id = np.argmax(neg_aves - pos_aves)
-                path = dtw.dtw(positive_prototypes[selected_id], pat, dtw.RETURN_PATH,
+                path = dtw(positive_prototypes[selected_id], pat, RETURN_PATH,
                                slope_constraint=slope_constraint, window=window)
 
             # Time warp

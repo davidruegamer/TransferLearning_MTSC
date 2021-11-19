@@ -7,7 +7,7 @@ class Classifier_INCEPTION:
 
     def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, batch_size=64, lr=0.001,
                  nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=41, nb_epochs=1500,
-                 patience=60, monitor_metric='val_accuracy'):
+                 patience=60, monitor_metric='val_accuracy', save=False, callbacks=[]):
 
         self.output_directory = output_directory
 
@@ -17,18 +17,20 @@ class Classifier_INCEPTION:
         self.depth = depth
         self.kernel_size = kernel_size - 1
         self.callbacks = [tf.keras.callbacks.EarlyStopping(monitor=monitor_metric, patience=patience, verbose=0,
-                                                          restore_best_weights=True)]
+                                                          restore_best_weights=True)] + callbacks
         self.batch_size = batch_size
         self.bottleneck_size = 32
         self.nb_epochs = nb_epochs
         self.lr = lr
         self.verbose = verbose
+        self.save = save
 
         if build == True:
             self.model = self.build_model(input_shape, nb_classes)
             if (verbose == True):
                 self.model.summary()
-            self.model.save_weights(self.output_directory + 'model_init.hdf5')
+            if (self.save == True):
+            	self.model.save_weights(self.output_directory + 'model_init.hdf5')
 
     def _inception_module(self, input_tensor, stride=1, activation='linear'):
 
@@ -97,14 +99,15 @@ class Classifier_INCEPTION:
 
         file_path = self.output_directory + 'best_model.hdf5'
 
-        model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss',
-                                                           save_best_only=True)
-
-        self.callbacks = [reduce_lr, model_checkpoint] + self.callbacks
+        self.callbacks = [reduce_lr] + self.callbacks
+        
+        if (self.save == True):
+        	model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss', save_best_only=True)
+        	self.callbacks = self.callbacks + [model_checkpoint]
 
         return model
 
-    def fit(self, x_train, y_train, x_val, y_val, y_true):
+    def fit(self, x_train, y_train, x_val, y_val, y_true, nb_epochs, batch_size):
         if not tf.test.is_gpu_available:
             print('error no gpu')
             exit()
@@ -117,12 +120,13 @@ class Classifier_INCEPTION:
 
         start_time = time.time()
 
-        hist = self.model.fit(x_train, y_train, batch_size=mini_batch_size, epochs=self.nb_epochs,
+        hist = self.model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epochs,
                               verbose=self.verbose, validation_data=(x_val, y_val), callbacks=self.callbacks)
 
         duration = time.time() - start_time
 
-        self.model.save(self.output_directory + 'last_model.hdf5')
+        if (self.save == True):
+        	self.model.save(self.output_directory + 'last_model.hdf5')
 
         y_pred = self.predict(x_val, y_true, x_train, y_train, y_val,
                               return_df_metrics=False)
@@ -139,7 +143,10 @@ class Classifier_INCEPTION:
 
     def predict(self, x_test, y_true, x_train, y_train, y_test, return_df_metrics=True):
         start_time = time.time()
-        model_path = self.output_directory + 'best_model.hdf5'
-        model = keras.models.load_model(model_path)
+        if (self.save == True):
+        	model_path = self.output_directory + 'best_model.hdf5'
+        	model = keras.models.load_model(model_path)
+        else:
+        	model = self.model
         y_pred = model.predict(x_test, batch_size=self.batch_size)
         return y_pred

@@ -6,17 +6,17 @@ import time
 class Classifier_FCN:
 
 	def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, 
-	  lr = 0.00001, filters=128, patience=50, monitor_metric='val_accuracy'):
+	  lr = 0.00001, filters=128, patience=50, monitor_metric='val_accuracy', callbacks=[]):
 		self.output_directory = output_directory
 		if build == True:
-			self.model = self.build_model(input_shape, nb_classes, lr, filters)
+			self.model = self.build_model(input_shape, nb_classes, lr, filters, callbacks, monitor_metric, patience)
 			if(verbose==True):
 				self.model.summary()
 			self.verbose = verbose
 			self.model.save_weights(self.output_directory+'model_init.hdf5')
 		return
 
-	def build_model(self, input_shape, nb_classes, lr, filters):
+	def build_model(self, input_shape, nb_classes, lr, filters, callbacks, monitor_metric, patience):
 		input_layer = keras.layers.Input(input_shape)
 
 		conv1 = keras.layers.Conv1D(filters=filters, kernel_size=8, padding='same')(input_layer)
@@ -51,17 +51,17 @@ class Classifier_FCN:
 		es = tf.keras.callbacks.EarlyStopping(monitor=monitor_metric, patience=patience, verbose=0,
 											  restore_best_weights=True)
 
-		self.callbacks = [reduce_lr,model_checkpoint,es]
+		self.callbacks = [reduce_lr,model_checkpoint,es] + callbacks
 
 		return model 
 
 	def fit(self, x_train, y_train, x_val, y_val,y_true, batch_size = 16, nb_epochs = 2000):
 		
-		mini_batch_size = int(min(x_train.shape[0]/10, batch_size))
+		# mini_batch_size = int(min(x_train.shape[0]/10, batch_size))
 
 		start_time = time.time() 
 
-		hist = self.model.fit(x_train, y_train, batch_size=mini_batch_size, epochs=nb_epochs,
+		hist = self.model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epochs,
 			verbose=self.verbose, validation_data=(x_val,y_val), callbacks=self.callbacks)
 		
 		duration = time.time() - start_time
