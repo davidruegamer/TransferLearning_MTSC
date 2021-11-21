@@ -56,7 +56,7 @@ tuner = tnr("hyperband")
 # Global Tuning Space
 tune_space = list(
   lr = to_tune(1e-5, 1e-2),
-  epochs = to_tune(p_int(lower = 1, upper = 512, tags = "budget")),
+  epochs = to_tune(p_int(lower = 1, upper = 5000, tags = "budget")),
   augmentation_ratio = to_tune(0, 20),
   jitter = to_tune(),
   scaling = to_tune(),
@@ -66,13 +66,13 @@ tune_space = list(
   timewarp = to_tune(),
   windowslice = to_tune(),
   windowwarp = to_tune(),
-  rotation = to_tune(),
+  # rotation = to_tune(),
   spawner = to_tune(),
-  dtwwarp = to_tune(),
-  shapedtwwarp = to_tune(),
-  wdba = to_tune(),
-  discdtw = to_tune(),
-  discsdtw = to_tune()
+  dtwwarp = to_tune()#,
+  # shapedtwwarp = to_tune(),
+  # wdba = to_tune(),
+  # discdtw = to_tune(),
+  # discsdtw = to_tune()
 )
 
 
@@ -135,15 +135,11 @@ design <- benchmark_grid(tasks = gait,
 set.seed(123456)
 
 bmr <- benchmark(design,
-                 store_models = FALSE,
+                 store_models = TRUE,
                  store_backends = FALSE)
 
-measures <- list (# msr("classif.auc"),
-                  msr("classif.acc"),
-                  msr("classif.sensitivity"),
-                  msr("classif.specificity"),
-                  msr("classif.precision"),
-                  msr("classif.fbeta"))
+measures <- list (msr("classif.acc"),
+                  msr("classif.bacc"))
 
 resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
   as.data.frame() %>%
@@ -163,3 +159,5 @@ print(aggr)
 
 learners = as.data.table(bmr)$learner
 lapply(1:length(learners), function(i) learners[[i]]$tuning_result)
+
+tune_res <- extract_inner_tuning_results(bmr)
