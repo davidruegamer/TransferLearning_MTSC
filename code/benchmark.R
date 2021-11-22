@@ -12,6 +12,8 @@ source("code/mlr3keras.R")
 source("code/xgboost.R")
 
 
+if(file.exists(".RData")) file.remove(".RData")
+
 #---------------------------------------------------------------------
 # Data to Task
 data <- readRDS("data/trans_learn.RDS")
@@ -29,6 +31,7 @@ map(names(gr), function(x) {set(df, j = x, value = gr[[x]]); NULL})
 
 gait = TaskClassif$new("gait", df, target = "grp")
 
+max_epochs = 50L
 
 #---------------------------------------------------------------------
 # Learner
@@ -56,7 +59,7 @@ tuner = tnr("hyperband")
 # Global Tuning Space
 tune_space = list(
   lr = to_tune(1e-5, 1e-2),
-  epochs = to_tune(p_int(lower = 1, upper = 5000, tags = "budget")),
+  epochs = to_tune(p_int(lower = 1, upper = max_epochs, tags = "budget")),
   augmentation_ratio = to_tune(0, 20),
   jitter = to_tune(),
   scaling = to_tune(),
@@ -84,9 +87,12 @@ fcnet$param_set$values = insert_named(fcnet$param_set$values, c(tune_space, tune
 fcnet_at = AutoTuner$new(
   learner = fcnet,
   resampling = resampling,
-  measure = msr("classif.acc"),
+  measure = msr("classif.ce"),
   terminator = trm("evals"),
-  tuner=tuner
+  tuner=tuner,
+  store_tuning_instance = TRUE,
+  store_benchmark_result = TRUE,
+  store_models = FALSE
 )
 # fcnet_at$train(gait)
 
@@ -101,9 +107,12 @@ inception$param_set$values = insert_named(inception$param_set$values, c(tune_spa
 inception_at = AutoTuner$new(
   learner = inception,
   resampling = resampling,
-  measure = msr("classif.acc"),
+  measure = msr("classif.ce"),
   terminator = trm("evals"),
-  tuner=tuner
+  tuner=tuner,
+  store_tuning_instance = TRUE,
+  store_benchmark_result = TRUE,
+  store_models = FALSE
 )
 # inception_at$train(gait)
 # 
@@ -113,14 +122,17 @@ inception_at = AutoTuner$new(
 
 
 tune_space_xgb = lts("classif.xgboost.default")
-tune_space_xgb$values$nrounds = to_tune(p_int(lower = 1, upper = 2000, tags = "budget"))
+tune_space_xgb$values$nrounds = to_tune(p_int(lower = 1, upper = max_epochs, tags = "budget"))
 xgboost$param_set$values = insert_named(xgboost$param_set$values, tune_space_xgb$values)
 xgb_at = AutoTuner$new(
   learner = xgboost,
   resampling = resampling,
-  measure = msr("classif.acc"),
+  measure = msr("classif.ce"),
   terminator = trm("evals"),
-  tuner=tuner
+  tuner=tuner,
+  store_tuning_instance = TRUE,
+  store_benchmark_result = TRUE,
+  store_models = FALSE
 )
 
 # xgb_at$train(gait)
