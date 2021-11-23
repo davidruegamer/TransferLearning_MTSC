@@ -31,7 +31,7 @@ map(names(gr), function(x) {set(df, j = x, value = gr[[x]]); NULL})
 
 gait = TaskClassif$new("gait", df, target = "grp")
 
-max_epochs = 50L
+max_epochs = 1000L
 
 #---------------------------------------------------------------------
 # Learner
@@ -160,9 +160,11 @@ resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
 
 saveRDS(resample_perf,
         "output/resample_perf.RDS")
+# resample_perf <- readRDS("output/resample_perf.RDS")
 
 saveRDS(bmr,
         "output/resampling_models.RDS")
+# bmr <- readRDS("output/resampling_models.RDS")
 
 resample_perf
 
