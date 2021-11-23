@@ -16,8 +16,11 @@ class Classifier_INCEPTION:
         self.use_bottleneck = use_bottleneck
         self.depth = depth
         self.kernel_size = kernel_size - 1
-        self.callbacks = [tf.keras.callbacks.EarlyStopping(monitor=monitor_metric, patience=patience, verbose=0,
-                                                          restore_best_weights=True)] + callbacks
+        
+        reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=10, min_lr=0.00001)
+        es = tf.keras.callbacks.EarlyStopping(monitor=monitor_metric, patience=patience, verbose=0, restore_best_weights=True)
+        self.callbacks = [reduce_lr, es] + callbacks
+        
         self.batch_size = batch_size
         self.bottleneck_size = 32
         self.nb_epochs = nb_epochs
@@ -94,12 +97,7 @@ class Classifier_INCEPTION:
         model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(self.lr),
                       metrics=['accuracy'])
 
-        reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
-                                                      min_lr=0.0001)
-
         file_path = self.output_directory + 'best_model.hdf5'
-
-        self.callbacks = [reduce_lr] + self.callbacks
         
         if (self.save == True):
         	model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss', save_best_only=True)
@@ -128,18 +126,17 @@ class Classifier_INCEPTION:
         if (self.save == True):
         	self.model.save(self.output_directory + 'last_model.hdf5')
 
-        y_pred = self.predict(x_val, y_true, x_train, y_train, y_val,
-                              return_df_metrics=False)
+        # y_pred = self.predict(x_val, y_true, x_train, y_train, y_val, return_df_metrics=False)
 
         # save predictions
         #np.save(self.output_directory + 'y_pred.npy', y_pred)
 
         # convert the predicted from binary to integer
-        y_pred = np.argmax(y_pred, axis=1)
+        # y_pred = np.argmax(y_pred, axis=1)
 
         keras.backend.clear_session()
 
-        return y_pred
+        return hist.history
 
     def predict(self, x_test, y_true, x_train, y_train, y_test, return_df_metrics=True):
         start_time = time.time()

@@ -6,8 +6,13 @@ import time
 class Classifier_FCN:
 
 	def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, 
-	  lr = 0.00001, filters=128, patience=50, monitor_metric='val_accuracy', callbacks=[]):
+	    lr = 0.00001, filters=128, patience=50, monitor_metric='val_accuracy', callbacks=[]):
+     
 		self.output_directory = output_directory
+		reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=10, min_lr=0.00001)
+		es = tf.keras.callbacks.EarlyStopping(monitor=monitor_metric, patience=patience, verbose=0, restore_best_weights=True)
+		callbacks = [reduce_lr, es] + callbacks
+        
 		if build == True:
 			self.model = self.build_model(input_shape, nb_classes, lr, filters, callbacks, monitor_metric, patience)
 			if(verbose==True):
@@ -68,19 +73,19 @@ class Classifier_FCN:
 
 		self.model.save(self.output_directory+'last_model.hdf5')
 
-		model = keras.models.load_model(self.output_directory+'best_model.hdf5')
+		# model = keras.models.load_model(self.output_directory+'best_model.hdf5')
 
-		y_pred = model.predict(x_val)
+		# y_pred = model.predict(x_val)
 		
 		# save predictions
-    #np.save(self.output_directory + 'y_pred.npy', y_pred)
+        # np.save(self.output_directory + 'y_pred.npy', y_pred)
 
 		# convert the predicted from binary to integer 
-		y_pred = np.argmax(y_pred , axis=1)
+		# y_pred = np.argmax(y_pred , axis=1)
 
 		keras.backend.clear_session()
 		
-		return y_pred
+		return hist.history
 
 	def predict(self, x_test, y_true,x_train,y_train,y_test,return_df_metrics = True):
 		model_path = self.output_directory + 'best_model.hdf5'

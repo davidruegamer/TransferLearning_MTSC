@@ -1,7 +1,9 @@
 # devtools::install_github("https://github.com/mlr-org/mlr3tuningspaces")
+reticulate::use_condaenv("deepregression")
 library(reticulate)
 library(mlr3keras)
 library(mlr3misc)
+library(mlr3hyperband)
 library(checkmate)
 library(data.table)
 library(paradox)
@@ -10,7 +12,6 @@ library(dplyr)
 library(mlr3tuningspaces)
 source("code/mlr3keras.R")
 source("code/xgboost.R")
-
 
 #---------------------------------------------------------------------
 # Data to Task
@@ -30,15 +31,17 @@ map(names(gr), function(x) {set(df, j = x, value = gr[[x]]); NULL})
 gait = TaskClassif$new("gait", df, target = "grp")
 
 
+
 #---------------------------------------------------------------------
 # Learner
+mlr3keras_set_seeds()
 inception = LearnerClassifKerasFDA$new(architecture = KerasArchitectureInceptionNet$new())
-# inception$param_set$values$nb_epochs = 5L
+# inception$param_set$values$epochs = 30L
+# inception$param_set$values$lr = 1e-4
 # inception$train(gait)
-# inception$predict(gait)
 
 fcnet = LearnerClassifKerasFDA$new(architecture = KerasArchitectureFCN$new())
-# fcnet$param_set$values$nb_epochs = 5L
+# fcnet$param_set$values$epochs = 5L
 # fcnet$train(gait)
 # fcnet$predict(gait)
 
@@ -50,14 +53,14 @@ xgboost = LearnerClassifXgboostFDA$new()
 # Benchmark Setup
 library(mlr3tuning)
 library(mlr3hyperband)
-resampling = rsmp("cv", folds = 3)
+resampling = rsmp("holdout", ratio = 0.8)
 tuner = tnr("hyperband")
 
 # Global Tuning Space
 tune_space = list(
   lr = to_tune(1e-5, 1e-2),
-  epochs = to_tune(p_int(lower = 1, upper = 5000, tags = "budget")),
-  augmentation_ratio = to_tune(0, 20),
+  epochs = to_tune(p_int(lower = 1, upper = 5, tags = "budget")),
+  augmentation_ratio = to_tune(0, 100),
   jitter = to_tune(),
   scaling = to_tune(),
   permutation = to_tune(),
@@ -101,9 +104,12 @@ inception$param_set$values = insert_named(inception$param_set$values, c(tune_spa
 inception_at = AutoTuner$new(
   learner = inception,
   resampling = resampling,
-  measure = msr("classif.acc"),
-  terminator = trm("evals"),
-  tuner=tuner
+  measure = msr("classif.ce"),
+  terminator = trm("evals", n_evals = 5),
+  tuner=tuner,
+  store_tuning_instance = TRUE,
+  store_benchmark_result = TRUE,
+  store_models = FALSE,
 )
 # inception_at$train(gait)
 # 
@@ -118,13 +124,11 @@ xgboost$param_set$values = insert_named(xgboost$param_set$values, tune_space_xgb
 xgb_at = AutoTuner$new(
   learner = xgboost,
   resampling = resampling,
-  measure = msr("classif.acc"),
+  measure = msr("classif.ce"),
   terminator = trm("evals"),
   tuner=tuner
 )
-
 # xgb_at$train(gait)
-
 
 learners <- list (fcnet_at, inception_at, xgb_at)
 
@@ -152,6 +156,13 @@ saveRDS(resample_perf,
 saveRDS(bmr,
         "output/resampling_models.RDS")
 
+
+
+
+
+readRDS("output/resample_perf.RDS")
+
+
 resample_perf
 
 aggr = bmr$aggregate()
@@ -161,3 +172,28 @@ learners = as.data.table(bmr)$learner
 lapply(1:length(learners), function(i) learners[[i]]$tuning_result)
 
 tune_res <- extract_inner_tuning_results(bmr)
+
+
+hyperband_schedule = function(r_min, r_max, eta, integer_budget = TRUE) {
+  r = r_max / r_min
+  s_max = floor(log(r, eta))
+  b = (s_max + 1) * r
+
+  map_dtr(s_max:0, function(s) {
+    nb = ceiling((b / r) * ((eta^s) / (s + 1)))
+    rb = r * eta^(-s)
+    map_dtr(0:s, function(i) {
+      ni = floor(nb * eta^(-i))
+      ri = r_min * rb * eta^i
+      if (integer_budget) ri = round(ri)
+      data.table(bracket = s, stage = i, budget = ri, n = ni)
+    })
+  })
+}
+
+hyperband_schedule(1, 1000, 2)
+
+
+bmr = readRDS("~/Downloads/resampling_models.RDS")
+
+bmr$resample_results$resample_result[[1]]

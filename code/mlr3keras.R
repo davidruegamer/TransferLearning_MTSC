@@ -42,7 +42,7 @@ build_inceptionnet = function(task, pars) {
     output_directory = output_directory,
     input_shape = as.integer(inp_shape),
     nb_classes = as.integer(nclasses),
-    verbose = TRUE,
+    verbose = FALSE,
     depth = as.integer(pars$depth),
     nb_filters = as.integer(pars$filters),
     batch_size = 128L,
@@ -169,7 +169,7 @@ LearnerClassifKerasFDA = R6::R6Class("LearnerClassifKerasFDA", inherit = Learner
         scale = p_lgl(tags = c("train", "predict")),
         batch_size = p_int(lower = 1, upper = Inf, tags = "train")
       )
-      param_set$values = list(callbacks = list(), validation_split = 0.2, augmentation_ratio = 4L,
+      param_set$values = list(callbacks = list(), validation_split = 0.05, augmentation_ratio = 4L,
         scaling = FALSE, permutation = FALSE, randompermutation = FALSE, magwarp = FALSE, timewarp = FALSE,
         windowwarp = FALSE, rotation = FALSE, spawner = FALSE, dtwwarp = FALSE, shapedtwwarp = FALSE,
         wdba = FALSE, discdtw = FALSE, discsdtw = FALSE, windowslice = FALSE,  jitter = TRUE,
@@ -239,7 +239,7 @@ LearnerClassifKerasFDA = R6::R6Class("LearnerClassifKerasFDA", inherit = Learner
       x_val = private$.scale(x[val$test,,], pars)
       y_val = self$architecture$transforms$y(target[val$test], pars)
 
-      model$fit(
+      history = model$fit(
         x_train = x_train_aug,
         y_train = y_train_aug,
         x_val = x_val,
@@ -291,7 +291,3 @@ LearnerClassifKerasFDA = R6::R6Class("LearnerClassifKerasFDA", inherit = Learner
     .scale_coefs = list(mean = 0, var = 1)
   )
 )
-
-
-
-
