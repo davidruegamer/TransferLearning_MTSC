@@ -93,7 +93,7 @@ mod <- inceptionNet$Classifier_INCEPTION(output_directory = "output/inception/",
                                          lr = 0.00001,
                                          nb_epochs = 750L)
 
-y_pred_in <- mod$fit(x_train, y_train, x_test, y_test, y_test)
+y_pred_in <- mod$fit(x_train, y_train, x_test, y_test, y_test, nb_epochs = 750L, batch_size = 128L)
 
 # check accuracy
 
@@ -120,7 +120,7 @@ mod <- inceptionNet$Classifier_INCEPTION(output_directory = "output/inception/",
                                          lr = 0.00001,
                                          nb_epochs = 750L)
 
-y_pred_in <- mod$fit(x_train_aug, y_train_aug, x_test, y_test, y_test)
+y_pred_in <- mod$fit(x_train_aug, y_train_aug, x_test, y_test, y_test, nb_epochs = 750L, batch_size = 128L)
 
 # check accuracy
 
