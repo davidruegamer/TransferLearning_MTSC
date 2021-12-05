@@ -1,5 +1,5 @@
 # devtools::install_github("https://github.com/mlr-org/mlr3tuningspaces")
-reticulate::use_condaenv("deepregression")
+# reticulate::use_condaenv("deepregression")
 library(reticulate)
 library(mlr3keras)
 library(mlr3misc)
@@ -111,19 +111,11 @@ inception_at = AutoTuner$new(
   learner = inception,
   resampling = resampling,
   measure = msr("classif.ce"),
-<<<<<<< HEAD
-  terminator = trm("evals", n_evals = 5),
-  tuner=tuner,
-  store_tuning_instance = TRUE,
-  store_benchmark_result = TRUE,
-  store_models = FALSE,
-=======
   terminator = trm("evals"),
   tuner=tuner,
   store_tuning_instance = TRUE,
   store_benchmark_result = TRUE,
   store_models = FALSE
->>>>>>> 124acc64dd7a50c9561fb1b0bd5eb60b9e4f7df2
 )
 # inception_at$train(gait)
 # 

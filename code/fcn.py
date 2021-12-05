@@ -9,9 +9,6 @@ class Classifier_FCN:
 	    lr = 0.00001, filters=128, patience=50, monitor_metric='val_accuracy', callbacks=[]):
      
 		self.output_directory = output_directory
-		reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=10, min_lr=0.00001)
-		es = tf.keras.callbacks.EarlyStopping(monitor=monitor_metric, patience=patience, verbose=0, restore_best_weights=True)
-		callbacks = [reduce_lr, es] + callbacks
         
 		if build == True:
 			self.model = self.build_model(input_shape, nb_classes, lr, filters, callbacks, monitor_metric, patience)
@@ -56,7 +53,7 @@ class Classifier_FCN:
 		es = tf.keras.callbacks.EarlyStopping(monitor=monitor_metric, patience=patience, verbose=0,
 											  restore_best_weights=True)
 
-		self.callbacks = [reduce_lr,model_checkpoint,es] + callbacks
+		self.callbacks = [es,reduce_lr,model_checkpoint] + callbacks
 
 		return model 
 
@@ -65,9 +62,16 @@ class Classifier_FCN:
 		# mini_batch_size = int(min(x_train.shape[0]/10, batch_size))
 
 		start_time = time.time() 
+		
+		if x_val is None or y_val is None:
+			val_data = None
+			self.callbacks = self.callbacks[1:] # no early stopping
+		else:
+        		val_data = (x_val, y_val)
+
 
 		hist = self.model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epochs,
-			verbose=self.verbose, validation_data=(x_val,y_val), callbacks=self.callbacks)
+			verbose=self.verbose, validation_data=val_data, callbacks=self.callbacks)
 		
 		duration = time.time() - start_time
 
