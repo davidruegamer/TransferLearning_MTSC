@@ -159,7 +159,7 @@ resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
   dplyr::select (nr, task_id, learner_id, resampling_id, iteration, matches ("classif."))
 
 
-saveRDS(resample_perf,
+saveRDS(resamprle_perf,
         "output/resample_perf.RDS")
 # resample_perf <- readRDS("output/resample_perf.RDS")
 
@@ -203,8 +203,5 @@ hyperband_schedule = function(r_min, r_max, eta, integer_budget = TRUE) {
 }
 
 hyperband_schedule(1, 1000, 2)
-
-
-bmr = readRDS("~/Downloads/resampling_models.RDS")
 
 bmr$resample_results$resample_result[[1]]
