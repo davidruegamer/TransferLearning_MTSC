@@ -36,21 +36,14 @@ max_epochs = 1000L
 
 
 #---------------------------------------------------------------------
-# Learner
-mlr3keras_set_seeds()
-inception = LearnerClassifKerasFDA$new(architecture = KerasArchitectureInceptionNet$new())
-# inception$param_set$values$epochs = 30L
-# inception$param_set$values$lr = 1e-4
-# inception$train(gait)
+# Learners
 
-fcnet = LearnerClassifKerasFDA$new(architecture = KerasArchitectureFCN$new())
-# fcnet$param_set$values$epochs = 5L
-# fcnet$train(gait)
-# fcnet$predict(gait)
+inception = LearnerClassifKerasFDA$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
+
+fcnet = LearnerClassifKerasFDA$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
 
 xgboost = LearnerClassifXgboostFDA$new()
-# xgboost$train(gait)
-# xgboost$predict(gait)
+
 
 #----------------------------------------------------------------------
 # Benchmark Setup
@@ -58,8 +51,9 @@ library(mlr3tuning)
 library(mlr3hyperband)
 resampling = rsmp("holdout", ratio = 0.8)
 tuner = tnr("hyperband")
+seed = 123456L
 
-# Global Tuning Space
+# Global Tuning Space fcnet / inception
 tune_space = list(
   lr = to_tune(1e-5, 1e-2),
   epochs = to_tune(p_int(lower = 1, upper = max_epochs, tags = "budget")),
@@ -74,30 +68,34 @@ tune_space = list(
   windowwarp = to_tune(),
   # rotation = to_tune(),
   spawner = to_tune(),
-  dtwwarp = to_tune()#,
+  dtwwarp = to_tune(),
   # shapedtwwarp = to_tune(),
   # wdba = to_tune(),
   # discdtw = to_tune(),
-  # discsdtw = to_tune()
+  # discsdtw = to_tune(),
+  seed = seed
 )
 
 
 tune_space_fcnet = list(
   filters = to_tune(4, 128)
 )
-fcnet$param_set$values = insert_named(fcnet$param_set$values, c(tune_space, tune_space_fcnet))
+fcnet$param_set$values = insert_named(
+  fcnet$param_set$values, 
+  c(tune_space, tune_space_fcnet)
+)
 
 fcnet_at = AutoTuner$new(
   learner = fcnet,
   resampling = resampling,
   measure = msr("classif.ce"),
-  terminator = trm("evals"),
+  terminator = trm("none"),
   tuner=tuner,
   store_tuning_instance = TRUE,
   store_benchmark_result = TRUE,
   store_models = FALSE
 )
-# fcnet_at$train(gait)
+
 
 
 tune_space_inception = list(
@@ -111,7 +109,7 @@ inception_at = AutoTuner$new(
   learner = inception,
   resampling = resampling,
   measure = msr("classif.ce"),
-  terminator = trm("evals"),
+  terminator = trm("none"),
   tuner=tuner,
   store_tuning_instance = TRUE,
   store_benchmark_result = TRUE,
@@ -131,7 +129,7 @@ xgb_at = AutoTuner$new(
   learner = xgboost,
   resampling = resampling,
   measure = msr("classif.ce"),
-  terminator = trm("evals"),
+  terminator = trm("none"),
   tuner=tuner,
   store_tuning_instance = TRUE,
   store_benchmark_result = TRUE,
@@ -145,7 +143,7 @@ design <- benchmark_grid(tasks = gait,
                          learners = learners,
                          resamplings = rsmp("holdout", ratio = 0.8))
 
-set.seed(123456)
+set.seed(seed)
 
 bmr <- benchmark(design,
                  store_models = TRUE,

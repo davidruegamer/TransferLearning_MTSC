@@ -167,13 +167,14 @@ LearnerClassifKerasFDA = R6::R6Class("LearnerClassifKerasFDA", inherit = Learner
         discsdtw = p_lgl(tags = "train"),
         center = p_lgl(tags = c("train", "predict")),
         scale = p_lgl(tags = c("train", "predict")),
-        batch_size = p_int(lower = 1, upper = Inf, tags = "train")
+        batch_size = p_int(lower = 1, upper = Inf, tags = "train"),
+        seed = p_int(tags = "train")
       )
       param_set$values = list(callbacks = list(), validation_split = 0, augmentation_ratio = 4L,
         scaling = FALSE, permutation = FALSE, randompermutation = FALSE, magwarp = FALSE, timewarp = FALSE,
         windowwarp = FALSE, rotation = FALSE, spawner = FALSE, dtwwarp = FALSE, shapedtwwarp = FALSE,
         wdba = FALSE, discdtw = FALSE, discsdtw = FALSE, windowslice = FALSE,  jitter = TRUE,
-        center = TRUE, scale = TRUE, batch_size = 128L
+        center = TRUE, scale = TRUE, batch_size = 128L, seed = 444L
       )
 
       super$initialize(
@@ -206,6 +207,8 @@ LearnerClassifKerasFDA = R6::R6Class("LearnerClassifKerasFDA", inherit = Learner
     .train = function(task) {
 
       pars = self$param_set$get_values(tags = "train")
+      # Set seed
+      mlr3keras_set_seeds(pars$seed)
 
       # Construct / Get the model depending on task and hyperparams.
       model = self$architecture$get_model(task, pars)
