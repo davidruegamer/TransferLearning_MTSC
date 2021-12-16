@@ -32,15 +32,15 @@ map(names(gr), function(x) {set(df, j = x, value = gr[[x]]); NULL})
 
 gait = TaskClassif$new("gait", df, target = "grp")
 
-max_epochs = 1000L
+max_epochs = 2L
 
 
 #---------------------------------------------------------------------
 # Learners
 
-inception = LearnerClassifKerasFDA$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
+inception = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
 
-fcnet = LearnerClassifKerasFDA$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
+fcnet = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
 
 xgboost = LearnerClassifXgboostFDA$new()
 
@@ -93,7 +93,7 @@ fcnet_at = AutoTuner$new(
   tuner=tuner,
   store_tuning_instance = TRUE,
   store_benchmark_result = TRUE,
-  store_models = FALSE
+  store_models = TRUE
 )
 
 
@@ -113,7 +113,7 @@ inception_at = AutoTuner$new(
   tuner=tuner,
   store_tuning_instance = TRUE,
   store_benchmark_result = TRUE,
-  store_models = FALSE
+  store_models = TRUE
 )
 # inception_at$train(gait)
 # 
@@ -133,7 +133,7 @@ xgb_at = AutoTuner$new(
   tuner=tuner,
   store_tuning_instance = TRUE,
   store_benchmark_result = TRUE,
-  store_models = FALSE
+  store_models = TRUE
 )
 # xgb_at$train(gait)
 
@@ -144,6 +144,9 @@ design <- benchmark_grid(tasks = gait,
                          resamplings = rsmp("holdout", ratio = 0.8))
 
 set.seed(seed)
+rr = resample(fcnet_at, task = gait, rsmp("holdout", ratio = .2), store_models = TRUE)
+dt = as.data.table(rr$learners[[1]]$tuning_instance$archive)
+map(dt$resample_result, "learners")
 
 bmr <- benchmark(design,
                  store_models = TRUE,
@@ -164,6 +167,7 @@ saveRDS(resamprle_perf,
 saveRDS(bmr,
         "output/resampling_models.RDS")
 # bmr <- readRDS("output/resampling_models.RDS")
+
 
 
 
@@ -203,3 +207,11 @@ hyperband_schedule = function(r_min, r_max, eta, integer_budget = TRUE) {
 hyperband_schedule(1, 1000, 2)
 
 bmr$resample_results$resample_result[[1]]
+
+
+library(data.table)
+fcnet2 = fcnet$clone(deep = TRUE)
+
+fcnet2$param_set$values$lr = 3
+
+fcnet$param_set$values
