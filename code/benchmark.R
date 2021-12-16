@@ -32,7 +32,7 @@ map(names(gr), function(x) {set(df, j = x, value = gr[[x]]); NULL})
 
 gait = TaskClassif$new("gait", df, target = "grp")
 
-max_epochs = 2L
+max_epochs = 250L
 
 
 #---------------------------------------------------------------------
@@ -142,11 +142,6 @@ learners <- list (fcnet_at, inception_at, xgb_at)
 design <- benchmark_grid(tasks = gait,
                          learners = learners,
                          resamplings = rsmp("holdout", ratio = 0.8))
-
-set.seed(seed)
-rr = resample(fcnet_at, task = gait, rsmp("holdout", ratio = .2), store_models = TRUE)
-dt = as.data.table(rr$learners[[1]]$tuning_instance$archive)
-map(dt$resample_result, "learners")
 
 bmr <- benchmark(design,
                  store_models = TRUE,
