@@ -299,6 +299,7 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
         man = "mlr3keras::mlr_learners_classif.keras_fda",
         architecture = KerasArchitectureInceptionNet$new()
       ) {
+      self$architecture = assert_class(architecture, "KerasArchitecture")
       param_set = ps(
         validation_split = p_dbl(lower = 0, upper = 1, default = 0.2, tags = "train"),
         callbacks = p_uty(default = list(), tags = "train"),
