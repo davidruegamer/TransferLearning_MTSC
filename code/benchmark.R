@@ -44,7 +44,6 @@ fcnet = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitec
 
 xgboost = LearnerClassifXgboostFDA$new()
 
-
 #----------------------------------------------------------------------
 # Benchmark Setup
 library(mlr3tuning)
@@ -55,7 +54,7 @@ seed = 123456L
 
 # Global Tuning Space fcnet / inception
 tune_space = list(
-  lr = to_tune(1e-5, 1e-2),
+  lr = to_tune(1e-5, 1e-2, logscale = TRUE),
   epochs = to_tune(p_int(lower = 1, upper = max_epochs, tags = "budget")),
   augmentation_ratio = to_tune(0, 20),
   jitter = to_tune(),
@@ -76,7 +75,7 @@ tune_space = list(
   seed = seed
 )
 
-
+# -------------------------- Set Up FCNET ------------------------
 tune_space_fcnet = list(
   filters = to_tune(4, 128)
 )
@@ -84,13 +83,19 @@ fcnet$param_set$values = insert_named(
   fcnet$param_set$values, 
   c(tune_space, tune_space_fcnet)
 )
+search_space = fcnet$param_set$search_space()$clone()
+search_space$subset(setdiff(search_space$ids(), "epochs"))
+tuner_fcnet = tnr("hyperband",
+  sampler = SamplerUnifwDefault$new(search_space, fcnet_default)
+)
+
 
 fcnet_at = AutoTuner$new(
   learner = fcnet,
   resampling = resampling,
   measure = msr("classif.ce"),
   terminator = trm("none"),
-  tuner=tuner,
+  tuner=tuner_fcnet,
   store_tuning_instance = TRUE,
   store_benchmark_result = TRUE,
   store_models = TRUE
@@ -98,6 +103,7 @@ fcnet_at = AutoTuner$new(
 
 
 
+# -------------------------- Set Up Inception ------------------------
 tune_space_inception = list(
   filters = to_tune(4, 128),
   use_residual = to_tune(),
@@ -105,6 +111,12 @@ tune_space_inception = list(
   kernel_size = to_tune(3, 101)
 )
 inception$param_set$values = insert_named(inception$param_set$values, c(tune_space, tune_space_inception))
+search_space = inception$param_set$search_space()$clone()
+search_space$subset(setdiff(search_space$ids(), "epochs"))
+tuner_inception = tnr("hyperband",
+  sampler = SamplerUnifwDefault$new(search_space, inception_default)
+)
+
 inception_at = AutoTuner$new(
   learner = inception,
   resampling = resampling,
@@ -115,13 +127,9 @@ inception_at = AutoTuner$new(
   store_benchmark_result = TRUE,
   store_models = TRUE
 )
-# inception_at$train(gait)
-# 
-# fcnet$train(gait)
-# 
-# inception$train(gait)
 
 
+# -------------------------- Set Up XGBOOST ------------------------
 tune_space_xgb = lts("classif.xgboost.default")
 tune_space_xgb$values$nrounds = to_tune(p_int(lower = 1, upper = max_epochs, tags = "budget"))
 xgboost$param_set$values = insert_named(xgboost$param_set$values, tune_space_xgb$values)
@@ -135,7 +143,10 @@ xgb_at = AutoTuner$new(
   store_benchmark_result = TRUE,
   store_models = TRUE
 )
-# xgb_at$train(gait)
+
+
+
+# -------------------------- Train ------------------------
 
 learners <- list (fcnet_at, inception_at, xgb_at)
 
@@ -201,57 +212,9 @@ hyperband_schedule(1, 250, 2)
 bmr$resample_results$resample_result[[1]]
 
 
-# library(data.table)
-# fcnet2 = fcnet$clone(deep = TRUE)
-# 
-# fcnet2$param_set$values$lr = 3
-# 
-# fcnet$param_set$values
-# 
-
-# Run no augmentation
-
-inception_pars = list(
-  lr = 1e-4,
-  epochs = 50,
-  augmentation_ratio = 1,
-  jitter = FALSE,
-  scaling = FALSE,
-  permutation = FALSE,
-  randompermutation = FALSE,
-  magwarp = FALSE,
-  timewarp = FALSE,
-  windowslice = FALSE,
-  windowwarp = FALSE,
-  spawner = FALSE,
-  dtwwarp = FALSE,
-  seed = seed,
-  filters = 64,
-  use_residual = TRUE,
-  use_bottleneck = TRUE,
-  kernel_size = 8
-)
-inception$param_set$values = insert_named(inception$param_set$values, inception_pars)
-
-fcnet_pars = list(
-  lr = 1e-4,
-  epochs = 50,
-  augmentation_ratio = 1,
-  jitter = FALSE,
-  scaling = FALSE,
-  permutation = FALSE,
-  randompermutation = FALSE,
-  magwarp = FALSE,
-  timewarp = FALSE,
-  windowslice = FALSE,
-  windowwarp = FALSE,
-  spawner = FALSE,
-  dtwwarp = FALSE,
-  seed = seed,
-  filters = 64L
-)
-fcnet$param_set$values = insert_named(fcnet$param_set$values, fcnet_pars)
-
+# No augmentation
+inception$param_set$values = insert_named(inception$param_set$values, inception_default)
+fcnet$param_set$values = insert_named(fcnet$param_set$values, fcnet_default)
 
 noaug_design = benchmark_grid(
   tasks = gait,

@@ -462,3 +462,72 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
     .scale_coefs = list(mean = 0, var = 1)
   )
 )
+
+
+SamplerUnifwDefault = R6::R6Class("SamplerUnifwDefault", inherit = SamplerUnif,
+  public = list(
+    #' @description
+    #' Creates a new instance of this [R6][R6::R6Class] class.
+    initialize = function(param_set, default) {
+      assert_param_set(param_set, must_bounded = TRUE, no_deps = FALSE, no_untyped = TRUE)
+      private$.default = assert_data_table(default, max.rows = 1L)
+      super$initialize(param_set)
+    }
+  ),
+  private = list(
+    .default = NULL,
+    .n_defaults_sampled = 0L,
+    .sample = function(n) {
+      ndef = private$.n_defaults_sampled
+      defs = private$.default
+      if (ndef >= 1L) {
+        vals = map_dtc(self$samplers, function(s) s$sample(n)$data)
+      } else {
+        if (n == 1L) {
+          vals = defs
+        } else {
+          vals = rbindlist(list(map_dtc(self$samplers, function(s) s$sample(n - 1)$data), defs), use.names = TRUE)
+        }
+        private$.n_defaults_sampled = 1L
+      }
+      return(vals)
+    }
+  )
+)
+
+inception_default = data.table(
+  lr = -9.2,  # log(1e-4)
+  # epochs = 50,
+  augmentation_ratio = 1,
+  jitter = FALSE,
+  scaling = FALSE,
+  permutation = FALSE,
+  randompermutation = FALSE,
+  magwarp = FALSE,
+  timewarp = FALSE,
+  windowslice = FALSE,
+  windowwarp = FALSE,
+  spawner = FALSE,
+  dtwwarp = FALSE,
+  filters = 64,
+  use_residual = TRUE,
+  use_bottleneck = TRUE,
+  kernel_size = 8
+)
+
+fcnet_default = data.table(
+  lr = -9.2, # log(1e-4)
+  # epochs = 50,
+  augmentation_ratio = 1,
+  jitter = FALSE,
+  scaling = FALSE,
+  permutation = FALSE,
+  randompermutation = FALSE,
+  magwarp = FALSE,
+  timewarp = FALSE,
+  windowslice = FALSE,
+  windowwarp = FALSE,
+  spawner = FALSE,
+  dtwwarp = FALSE,
+  filters = 64L
+)
