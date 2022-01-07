@@ -486,7 +486,7 @@ SamplerUnifwDefault = R6::R6Class("SamplerUnifwDefault", inherit = SamplerUnif,
         if (n == 1L) {
           vals = defs
         } else {
-          vals = rbindlist(list(map_dtc(self$samplers, function(s) s$sample(n - 1)$data), defs), use.names = TRUE)
+          vals = rbindlist(defs, list(map_dtc(self$samplers, function(s) s$sample(n - 1)$data)), use.names = TRUE)
         }
         private$.n_defaults_sampled = 1L
       }
