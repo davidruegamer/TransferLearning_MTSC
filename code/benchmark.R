@@ -32,7 +32,7 @@ map(names(gr), function(x) {set(df, j = x, value = gr[[x]]); NULL})
 
 gait = TaskClassif$new("gait", df, target = "grp")
 
-max_epochs = 250L
+max_epochs = 2L
 
 
 #---------------------------------------------------------------------
@@ -147,7 +147,11 @@ bmr <- benchmark(design,
                  store_models = TRUE,
                  store_backends = FALSE)
 
-measures <- list (msr("classif.acc"),
+fcnet$param_set$values = list()
+
+
+
+res <- list (msr("classif.acc"),
                   msr("classif.bacc"))
 
 resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
@@ -210,3 +214,56 @@ fcnet2 = fcnet$clone(deep = TRUE)
 fcnet2$param_set$values$lr = 3
 
 fcnet$param_set$values
+
+
+# Run no augmentation
+
+inception_pars = list(
+  lr = 1e-4,
+  epochs = 50,
+  augmentation_ratio = 1,
+  jitter = FALSE,
+  scaling = FALSE,
+  permutation = FALSE,
+  randompermutation = FALSE,
+  magwarp = FALSE,
+  timewarp = FALSE,
+  windowslice = FALSE,
+  windowwarp = FALSE,
+  spawner = FALSE,
+  dtwwarp = FALSE,
+  seed = seed,
+  filters = 64,
+  use_residual = TRUE,
+  use_bottleneck = TRUE,
+  kernel_size = 8
+)
+inception$param_set$values = insert_named(inception$param_set$values, inception_pars)
+
+fcnet_pars = list(
+  lr = 1e-4,
+  epochs = 50,
+  augmentation_ratio = 1,
+  jitter = FALSE,
+  scaling = FALSE,
+  permutation = FALSE,
+  randompermutation = FALSE,
+  magwarp = FALSE,
+  timewarp = FALSE,
+  windowslice = FALSE,
+  windowwarp = FALSE,
+  spawner = FALSE,
+  dtwwarp = FALSE,
+  seed = seed,
+  filters = 64L
+)
+fcnet$param_set$values = insert_named(fcnet$param_set$values, fcnet_pars)
+
+
+noaug_design = benchmark_grid(
+  tasks = gait,
+  learners = c(inception, fcnet, xgboost),
+  resamplings = rsmp("holdout", ratio = 0.8)
+)
+
+bmr2 = benchmark(noaug_design)
