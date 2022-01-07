@@ -1,3 +1,9 @@
+augment_args = c("augmentation_ratio", "seed", "jitter", "scaling", "permutation", 
+"randompermutation", "magwarp", "timewarp", "windowslice", "windowwarp", 
+"rotation", "spawner", "dtwwarp", "shapedtwwarp", "wdba", "discdtw", 
+"discsdtw", "extra_tag", "dataset")
+
+
 list_to_args <- function(
   augmentation_ratio = 4L,
   seed=2L,
@@ -61,5 +67,6 @@ list_to_args <- function(
   args = parser$parse_args()
   
   invisible(return(args))
-  
 }
+
+

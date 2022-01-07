@@ -220,7 +220,7 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
       x = private$.scale(x, pars)
 
       # Augmentation
-      res = private$.augment_data(x[val$train,,], target[val$train])
+      res = private$.augment_data(x[val$train,,], target[val$train], pars)
       x_train_aug = res[[1]]
       y_train_aug = factor(res[[2]])
       y_train_aug = self$architecture$transforms$y(y_train_aug, pars)
@@ -261,6 +261,7 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
       mlr3keras:::fixup_target_levels_prediction_classif(p, task, self$predict_type)
     },
     .augment_data = function(x, y, pars = list()) {
+      pars = discard(pars[augment_args], is.null)
       pars = do.call("list_to_args", pars)
       aug = import_from_path("augmentation", "code/")
       res = aug$run_augmentation(x, y, pars)
@@ -397,7 +398,7 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
       x = private$.scale(x, pars)
 
       # Augmentation
-      res = private$.augment_data(x[val$train,,], target[val$train])
+      res = private$.augment_data(x[val$train,,], target[val$train], pars)
       x_train_aug = res[[1]]
       y_train_aug = factor(res[[2]])
       y_train_aug = self$architecture$transforms$y(y_train_aug, pars)
@@ -438,6 +439,7 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
       mlr3keras:::fixup_target_levels_prediction_classif(p, task, self$predict_type)
     },
     .augment_data = function(x, y, pars = list()) {
+      pars = discard(pars[augment_args], is.null)
       pars = do.call("list_to_args", pars)
       aug = import_from_path("augmentation", "code/")
       res = aug$run_augmentation(x, y, pars)
@@ -486,7 +488,7 @@ SamplerUnifwDefault = R6::R6Class("SamplerUnifwDefault", inherit = SamplerUnif,
         if (n == 1L) {
           vals = defs
         } else {
-          vals = rbindlist(defs, list(map_dtc(self$samplers, function(s) s$sample(n - 1)$data)), use.names = TRUE)
+          vals = rbindlist(list(defs, map_dtc(self$samplers, function(s) s$sample(n - 1)$data)), use.names = TRUE)
         }
         private$.n_defaults_sampled = 1L
       }
