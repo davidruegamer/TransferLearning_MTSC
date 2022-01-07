@@ -159,20 +159,13 @@ resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
   dplyr::select (nr, task_id, learner_id, resampling_id, iteration, matches ("classif."))
 
 
-saveRDS(resamprle_perf,
+saveRDS(resample_perf,
         "output/resample_perf.RDS")
 # resample_perf <- readRDS("output/resample_perf.RDS")
 
 saveRDS(bmr,
         "output/resampling_models.RDS")
 # bmr <- readRDS("output/resampling_models.RDS")
-
-
-
-
-
-
-readRDS("output/resample_perf.RDS")
 
 
 resample_perf
@@ -203,18 +196,18 @@ hyperband_schedule = function(r_min, r_max, eta, integer_budget = TRUE) {
   })
 }
 
-hyperband_schedule(1, 1000, 2)
+hyperband_schedule(1, 250, 2)
 
 bmr$resample_results$resample_result[[1]]
 
 
-library(data.table)
-fcnet2 = fcnet$clone(deep = TRUE)
-
-fcnet2$param_set$values$lr = 3
-
-fcnet$param_set$values
-
+# library(data.table)
+# fcnet2 = fcnet$clone(deep = TRUE)
+# 
+# fcnet2$param_set$values$lr = 3
+# 
+# fcnet$param_set$values
+# 
 
 # Run no augmentation
 
@@ -262,8 +255,12 @@ fcnet$param_set$values = insert_named(fcnet$param_set$values, fcnet_pars)
 
 noaug_design = benchmark_grid(
   tasks = gait,
-  learners = c(inception, fcnet, xgboost),
-  resamplings = rsmp("holdout", ratio = 0.8)
+  learners = c(inception, fcnet),
+  resamplings = bmr$resamplings$resampling
 )
 
 bmr2 = benchmark(noaug_design)
+saveRDS(bmr2, file="output/resampling_models_noaug.RDS")
+
+aggr2 = bmr2$aggregate()
+print(aggr2)
