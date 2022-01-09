@@ -217,13 +217,14 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
 
       # Scale training data, estimate from training data.
       private$.get_scale_coefs(x[val$train,,])
+      # Scale x and one-hot y
       x = private$.scale(x, pars)
+      y = self$architecture$transforms$y(factor(target[val$train]), pars)
 
       # Augmentation
-      res = private$.augment_data(x[val$train,,], target[val$train], pars)
+      res = private$.augment_data(x[val$train,,], y, pars)
       x_train_aug = res[[1]]
-      y_train_aug = factor(res[[2]])
-      y_train_aug = self$architecture$transforms$y(y_train_aug, pars)
+      y_train_aug = res[[2]]
 
       # Scale validation data
       if(length(val$test)==0){
@@ -273,6 +274,10 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
       )
     },
     .scale = function(x, pars) {
+      ndim = length(dim(x))
+      if (ndim == 2L) {
+        x = array(x, dim = c(1L, dim(x)))
+      }
       for (i in seq_len(dim(x)[1])) {
         if (pars$center) {
           x[i,,] = x[i,,] - private$.scale_coefs$mean
@@ -280,8 +285,9 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
         if (pars$scale) {
           x[i,,] = x[i,,] / sqrt(private$.scale_coefs$var)
         }
-        return(x)
       }
+
+      return(x)
     },
     .scale_coefs = list(mean = 0, var = 1)
   )
@@ -394,20 +400,22 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
       val = list(train = train, test = setdiff(idx, train))
 
       # Scale training data, estimate from training data.
-      private$.get_scale_coefs(x[val$train,,])
+      private$.get_scale_coefs(x[val$train,,, drop = FALSE])
+
+      # Scale x and one-hot y
       x = private$.scale(x, pars)
+      y = self$architecture$transforms$y(factor(target[val$train]), pars)
 
       # Augmentation
-      res = private$.augment_data(x[val$train,,], target[val$train], pars)
+      res = private$.augment_data(x[val$train,,], y, pars)
       x_train_aug = res[[1]]
-      y_train_aug = factor(res[[2]])
-      y_train_aug = self$architecture$transforms$y(y_train_aug, pars)
+      y_train_aug = res[[2]]
 
       # Scale validation data
       if(length(val$test)==0){
         x_val <- y_val <- NULL
       }else{
-        x_val = private$.scale(x[val$test,,], pars)
+        x_val = private$.scale(x[val$test, , , drop = FALSE], pars)
         y_val = self$architecture$transforms$y(target[val$test], pars)
       }
 
@@ -451,6 +459,10 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
       )
     },
     .scale = function(x, pars) {
+      ndim = length(dim(x))
+      if (ndim == 2L) {
+        x = array(x, dim = c(1L, dim(x)))
+      }
       for (i in seq_len(dim(x)[1])) {
         if (pars$center) {
           x[i,,] = x[i,,] - private$.scale_coefs$mean
@@ -458,8 +470,8 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
         if (pars$scale) {
           x[i,,] = x[i,,] / sqrt(private$.scale_coefs$var)
         }
-        return(x)
       }
+      return(x)
     },
     .scale_coefs = list(mean = 0, var = 1)
   )
@@ -472,7 +484,9 @@ SamplerUnifwDefault = R6::R6Class("SamplerUnifwDefault", inherit = SamplerUnif,
     #' Creates a new instance of this [R6][R6::R6Class] class.
     initialize = function(param_set, default) {
       assert_param_set(param_set, must_bounded = TRUE, no_deps = FALSE, no_untyped = TRUE)
-      private$.default = assert_data_table(default, max.rows = 1L)
+      # We only opzimize for params in param_set and re-order
+      default = default[, names(param_set$params), with = FALSE]
+      private$.default = assert_data_table(default, max.rows = 1L, col.names = names(param_set$pars))
       super$initialize(param_set)
     }
   ),
@@ -488,7 +502,10 @@ SamplerUnifwDefault = R6::R6Class("SamplerUnifwDefault", inherit = SamplerUnif,
         if (n == 1L) {
           vals = defs
         } else {
-          vals = rbindlist(list(defs, map_dtc(self$samplers, function(s) s$sample(n - 1)$data)), use.names = TRUE)
+          vals = rbindlist(list(
+            defs,
+            map_dtc(self$samplers, function(s) s$sample(n - 1)$data)
+          ), use.names = TRUE)
         }
         private$.n_defaults_sampled = 1L
       }
