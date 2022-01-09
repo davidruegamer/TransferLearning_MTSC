@@ -40,7 +40,7 @@ validation_run = FALSE
 seed = 123456L
 if (validation_run) {
   max_epochs = 4L
-  sample_rows = c(2187L, 2218L, 2080L, 533L, 328L, 152L, 1825L, 2294L, 617L, 533L, 2295L, 396L, 1448L, 532L, 378L, 675L, 878L, 2L, 830L, 207L, 38L, 15L, 1406L, 1279L, 1532L, 1L)
+  sample_rows = c(2187L, 2218L, 2080L, 533L, 328L,329L:332L, 152L, 1825L, 2294L, 617L, 533L, 2295L, 396L, 1448L, 532L, 378L, 675L, 878L, 2L, 830L, 207L, 38L, 15L, 1406L, 1279L, 1532L, 1L)
 } else {
   max_epochs = 150L
   sample_rows = gait$row_ids
@@ -141,7 +141,7 @@ inception_at = AutoTuner$new(
 
 
 # -------------------------- Set Up XGBOOST ------------------------
-tune_space_xgb = lts("classif.xgboost.default")
+tune_space_xgb = mlr3tuningspaces::lts("classif.xgboost.default")
 tune_space_xgb$values$nrounds = to_tune(p_int(lower = 1, upper = max_epochs, tags = "budget"))
 xgboost$param_set$values = insert_named(xgboost$param_set$values, tune_space_xgb$values)
 tuner = tnr("hyperband")
@@ -163,14 +163,18 @@ xgb_at = AutoTuner$new(
 set.seed(seed)
 learners <- list (fcnet_at, inception_at, xgb_at)
 
-fcnet_at$train(gait)$test(gait)
+if (FALSE) {
 design <- benchmark_grid(tasks = gait$clone()$filter(rows = sample_rows),
-                         learners = learners[1:2],
+                         learners = learners,
                          resamplings = rsmp("holdout", ratio = 0.8))
 
 bmr <- benchmark(design,
                  store_models = TRUE,
-                 store_backends = FALSE)
+                 store_backends = FALSE,
+                 encapsulate = "none")
+}
+
+# source("code/benchmark.R")
 
 # res <- list (msr("classif.acc"),
 #                   msr("classif.bacc"))
@@ -239,4 +243,4 @@ bmr <- benchmark(design,
 # print(aggr2)
 # sampler_fcnet$sample(1)
 # sampler_inception$sample(1)
-# source("code/benchmark.R")
+

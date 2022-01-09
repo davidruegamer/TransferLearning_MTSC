@@ -210,8 +210,9 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
       x = self$architecture$transforms$x(features, pars)
 
       idx = seq_len(dim(x)[1])
-      train = unlist(map(split(idx, target), function(x) {
-        sample(x, round((1 - pars$validation_split) * length(x)))
+      train = unlist(map(split(idx, target), function(xc) {
+        if (length(xc) == 1L) return(xc) # R sample() is STUPID!
+        sample(xc, round((1 - pars$validation_split) * length(xc)))
       }))
       val = list(train = train, test = setdiff(idx, train))
 
@@ -227,7 +228,7 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
       y_train_aug = res[[2]]
 
       # Scale validation data
-      if(length(val$test)==0){
+      if(length(val$test)==0  | pars$validation_split == 0){
         x_val <- y_val <- NULL
       }else{
         x_val = private$.scale(x[val$test,,], pars)
@@ -394,8 +395,9 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
       x = self$architecture$transforms$x(features, pars)
 
       idx = seq_len(dim(x)[1])
-      train = unlist(map(split(idx, target), function(x) {
-        sample(x, round((1 - pars$validation_split) * length(x)))
+      train = unlist(map(split(idx, target), function(xc) {
+        if (length(xc) == 1L) return(xc) # R sample() is STUPID!
+        sample(xc, round((1 - pars$validation_split) * length(xc)))
       }))
       val = list(train = train, test = setdiff(idx, train))
 
@@ -412,9 +414,9 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
       y_train_aug = res[[2]]
 
       # Scale validation data
-      if(length(val$test)==0){
+      if(length(val$test)==0 | pars$validation_split == 0){
         x_val <- y_val <- NULL
-      }else{
+      } else {
         x_val = private$.scale(x[val$test, , , drop = FALSE], pars)
         y_val = self$architecture$transforms$y(target[val$test], pars)
       }
@@ -451,6 +453,7 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
       pars = do.call("list_to_args", pars)
       aug = import_from_path("augmentation", "code/")
       res = aug$run_augmentation(x, y, pars)
+      return(res)
     },
     .get_scale_coefs = function(x) {
       private$.scale_coefs = list(
@@ -486,7 +489,7 @@ SamplerUnifwDefault = R6::R6Class("SamplerUnifwDefault", inherit = SamplerUnif,
       assert_param_set(param_set, must_bounded = TRUE, no_deps = FALSE, no_untyped = TRUE)
       # We only opzimize for params in param_set and re-order
       default = default[, names(param_set$params), with = FALSE]
-      private$.default = assert_data_table(default, max.rows = 1L, col.names = names(param_set$pars))
+      private$.default = assert_data_table(default, max.rows = 1L)
       super$initialize(param_set)
     }
   ),
