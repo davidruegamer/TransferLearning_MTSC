@@ -165,7 +165,7 @@ learners <- list (fcnet_at, inception_at, xgb_at)
 
 if (FALSE) {
 design <- benchmark_grid(tasks = gait$clone()$filter(rows = sample_rows),
-                         learners = learners[1:2],
+                         learners = learners,
                          resamplings = rsmp("holdout", ratio = 0.8))
 
 bmr <- benchmark(design,
