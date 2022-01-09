@@ -32,7 +32,7 @@ map(names(gr), function(x) {set(df, j = x, value = gr[[x]]); NULL})
 
 gait = TaskClassif$new("gait", df, target = "grp")
 
-max_epochs = 4L
+max_epochs = 250L
 
 
 #---------------------------------------------------------------------

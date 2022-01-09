@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import os
 
 import numpy as np
@@ -350,7 +350,7 @@ def spawner(x, labels, sigma=0.05, verbose=0):
     random_points = np.random.randint(low=1, high=x.shape[1] - 1, size=x.shape[0])
     window = np.ceil(x.shape[1] / 10.).astype(int)
     orig_steps = np.arange(x.shape[1])
-    l = np.argmax(labels, axis=1) if labels.ndim > 1 else labels
+    l = np.argmax(labels, axis=1) if len(labels) > 1 else labels
 
     ret = np.zeros_like(x)
     for i, pat in enumerate(tqdm(x)):
@@ -393,7 +393,7 @@ def wdba(x, labels, batch_size=6, slope_constraint="symmetric", use_window=True,
     else:
         window = None
     orig_steps = np.arange(x.shape[1])
-    l = np.argmax(labels, axis=1) if labels.ndim > 1 else labels
+    l = np.argmax(labels, axis=1) if len(labels) > 1 else labels
 
     ret = np.zeros_like(x)
     for i in tqdm(range(ret.shape[0])):
@@ -455,7 +455,7 @@ def random_guided_warp(x, labels, slope_constraint="symmetric", use_window=True,
     else:
         window = None
     orig_steps = np.arange(x.shape[1])
-    l = np.argmax(labels, axis=1) if labels.ndim > 1 else labels
+    l = np.argmax(labels, axis=1) if len(labels) > 1 else labels
 
     ret = np.zeros_like(x)
     for i, pat in enumerate(tqdm(x)):
@@ -500,7 +500,7 @@ def discriminative_guided_warp(x, labels, batch_size=6, slope_constraint="symmet
     else:
         window = None
     orig_steps = np.arange(x.shape[1])
-    l = np.argmax(labels, axis=1) if labels.ndim > 1 else labels
+    l = np.argmax(labels, axis=1) if len(labels) > 1 else labels
 
     positive_batch = np.ceil(batch_size / 2).astype(int)
     negative_batch = np.floor(batch_size / 2).astype(int)
@@ -583,7 +583,7 @@ def load_data_from_file(data_file, label_file=None, delimiter=" "):
     if label_file:
         data = np.genfromtxt(data_file, delimiter=delimiter)
         labels = np.genfromtxt(label_file, delimiter=delimiter)
-        if labels.ndim > 1:
+        if len(labels) > 1:
             labels = labels[:,1]
     else:
         data = np.genfromtxt(data_file, delimiter=delimiter)
