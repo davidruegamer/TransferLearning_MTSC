@@ -174,34 +174,27 @@ bmr <- benchmark(design,
                  encapsulate = "none")
 }
 
-# source("code/benchmark.R")
+measures <- list (msr("classif.acc"),
+                  msr("classif.bacc"))
 
-# res <- list (msr("classif.acc"),
-#                   msr("classif.bacc"))
-
-# resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
-#   as.data.frame() %>%
-#   dplyr::select (nr, task_id, learner_id, resampling_id, iteration, matches ("classif."))
+resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
+  as.data.frame() %>%
+  dplyr::select (nr, task_id, learner_id, resampling_id, iteration, matches ("classif."))
 
 
-# saveRDS(resample_perf,
-#         "output/resample_perf.RDS")
-# # resample_perf <- readRDS("output/resample_perf.RDS")
+saveRDS(resample_perf,
+        "output/resample_perf.RDS")
+# resample_perf <- readRDS("output/resample_perf.RDS")
 
-# saveRDS(bmr,
-#         "output/resampling_models.RDS")
-# # bmr <- readRDS("output/resampling_models.RDS")
+resample_perf
 
+aggr = bmr$aggregate()
+print(aggr)
 
-# resample_perf
+learners = as.data.table(bmr)$learner
+lapply(1:length(learners), function(i) learners[[i]]$tuning_result)
 
-# aggr = bmr$aggregate()
-# print(aggr)
-
-# learners = as.data.table(bmr)$learner
-# lapply(1:length(learners), function(i) learners[[i]]$tuning_result)
-
-# tune_res <- extract_inner_tuning_results(bmr)
+tune_res <- extract_inner_tuning_results(bmr)
 
 
 # hyperband_schedule = function(r_min, r_max, eta, integer_budget = TRUE) {
@@ -227,20 +220,20 @@ bmr <- benchmark(design,
 
 
 # # No augmentation
-# inception$param_set$values = insert_named(inception$param_set$values, inception_default)
-# fcnet$param_set$values = insert_named(fcnet$param_set$values, fcnet_default)
+inception$param_set$values = insert_named(inception$param_set$values, inception_default)
+fcnet$param_set$values = insert_named(fcnet$param_set$values, fcnet_default)
 
-# noaug_design = benchmark_grid(
-#   tasks = gait,
-#   learners = c(inception, fcnet),
-#   resamplings = bmr$resamplings$resampling
-# )
+noaug_design = benchmark_grid(
+  tasks = gait,
+  learners = c(inception, fcnet),
+  resamplings = bmr$resamplings$resampling
+)
 
-# bmr2 = benchmark(noaug_design)
-# saveRDS(bmr2, file="output/resampling_models_noaug.RDS")
+bmr2 = benchmark(noaug_design)
+saveRDS(bmr2, file="output/resampling_models_noaug.RDS")
 
-# aggr2 = bmr2$aggregate()
-# print(aggr2)
-# sampler_fcnet$sample(1)
-# sampler_inception$sample(1)
+aggr2 = bmr2$aggregate()
+print(aggr2)
+sampler_fcnet$sample(1)
+sampler_inception$sample(1)
 
