@@ -163,7 +163,6 @@ xgb_at = AutoTuner$new(
 set.seed(seed)
 learners <- list (fcnet_at, inception_at, xgb_at)
 
-if (FALSE) {
 design <- benchmark_grid(tasks = gait$clone()$filter(rows = sample_rows),
                          learners = learners,
                          resamplings = rsmp("holdout", ratio = 0.8))
@@ -172,7 +171,6 @@ bmr <- benchmark(design,
                  store_models = TRUE,
                  store_backends = FALSE,
                  encapsulate = "none")
-}
 
 measures <- list (msr("classif.acc"),
                   msr("classif.bacc"))
@@ -218,6 +216,11 @@ tune_res <- extract_inner_tuning_results(bmr)
 
 # bmr$resample_results$resample_result[[1]]
 
+
+inception_default$lr <- exp(inception_default$lr)
+fcnet_default$lr <- exp(fcnet_default$lr)
+inception_default$epochs <- 300
+fcnet_default$epochs <- 300
 
 # # No augmentation
 inception$param_set$values = insert_named(inception$param_set$values, inception_default)
