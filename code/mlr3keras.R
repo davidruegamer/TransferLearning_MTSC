@@ -42,7 +42,7 @@ build_inceptionnet = function(task, pars) {
     output_directory = output_directory,
     input_shape = as.integer(inp_shape),
     nb_classes = as.integer(nclasses),
-    verbose = FALSE,
+    verbose = TRUE,
     depth = as.integer(pars$depth),
     nb_filters = as.integer(pars$filters),
     batch_size = 128L,
@@ -310,6 +310,7 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
       self$architecture = assert_class(architecture, "KerasArchitecture")
       param_set = ps(
         validation_split = p_dbl(lower = 0, upper = 1, default = 0.2, tags = "train"),
+        val_idx = p_uty(tags = "train"),
         callbacks = p_uty(default = list(), tags = "train"),
         augmentation_ratio = p_int(lower = 0, upper = Inf, tags = "train"),
         jitter = p_lgl(tags = "train"),
@@ -340,7 +341,7 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
         kernel_size = p_int(lower = 1, upper = Inf, tags = "train"),
         patience = p_int(lower = 0, upper = Inf, tags = "train")
       )
-      param_set$values = list(callbacks = list(), validation_split = 0, augmentation_ratio = 4L,
+      param_set$values = list(callbacks = list(), validation_split = 0, val_idx = NULL, augmentation_ratio = 4L,
         scaling = FALSE, permutation = FALSE, randompermutation = FALSE, magwarp = FALSE, timewarp = FALSE,
         windowwarp = FALSE, rotation = FALSE, spawner = FALSE, dtwwarp = FALSE, shapedtwwarp = FALSE,
         wdba = FALSE, discdtw = FALSE, discsdtw = FALSE, windowslice = FALSE,  jitter = TRUE,
@@ -400,7 +401,10 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
         sample(xc, round((1 - pars$validation_split) * length(xc)))
       }))
       val = list(train = train, test = setdiff(idx, train))
-
+      if(!is.null(pars$val_idx)){
+        val$train = setdiff(val$train, pars$val_idx)
+        val$test = pars$val_idx
+      }
       # Scale training data, estimate from training data.
       private$.get_scale_coefs(x[val$train,,, drop = FALSE])
 
@@ -414,7 +418,7 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
       y_train_aug = res[[2]]
 
       # Scale validation data
-      if(length(val$test)==0 | pars$validation_split == 0){
+      if(length(val$test)==0 | (pars$validation_split == 0 & is.null(pars$val_idx))){
         x_val <- y_val <- NULL
       } else {
         x_val = private$.scale(x[val$test, , , drop = FALSE], pars)
