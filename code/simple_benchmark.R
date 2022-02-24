@@ -131,31 +131,3 @@ bmr <- benchmark(design,
                  encapsulate = "none")
 
 saveRDS(bmr, file="output/resampling_models_simple_woxgb.RDS")
-
-bmr <- readRDS("output/resampling_models_simple_woxgb.RDS")
-
-measures <- list (msr("classif.acc"),
-                  msr("classif.bacc"))
-
-resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
-  as.data.frame() %>%
-  dplyr::select (nr, task_id, learner_id, resampling_id, iteration, matches ("classif."))
-
-resample_perf <- resample_perf %>% mutate(learner_id = replace(learner_id, learner_id=="fcnet" & nr==2, "fcnet4"),
-                         learner_id = replace(learner_id, learner_id=="fcnet" & nr==3, "fcnet8"),
-                         learner_id = replace(learner_id, learner_id=="inception" & nr==5, "inception4"),
-                         learner_id = replace(learner_id, learner_id=="inception" & nr==6, "inception8"),
-)
-  
-
-par(mfrow=c(1,2))
-boxplot(resample_perf$classif.acc ~ resample_perf$learner_id)
-boxplot(resample_perf$classif.bacc ~ resample_perf$learner_id)
-
-# aggr = bmr$aggregate() # bmr$score()
-# print(aggr)
-# 
-# learners = as.data.table(bmr)$learner
-# best_tuning_res <- lapply(1:length(learners), function(i) learners[[i]]$tuning_result)
-# 
-# tune_res <- extract_inner_tuning_results(bmr)
