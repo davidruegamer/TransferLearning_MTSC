@@ -143,7 +143,7 @@ inception_at = AutoTuner$new(
 # -------------------------- Set Up XGBOOST ------------------------
 tune_space_xgb = mlr3tuningspaces::lts("classif.xgboost.default")
 aug_space = list(
-  augmentation_ratio = to_tune(0, 20),
+  augmentation_ratio = to_tune(0, 2),
   jitter = to_tune(),
   scaling = to_tune(),
   permutation = to_tune(),

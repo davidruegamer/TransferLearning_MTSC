@@ -212,11 +212,7 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
       nobs = nrow(data)
       data = map(data, function(ll) as.matrix(rbindlist(map(ll, function(x) as.list(unlist(x))))))
       arr = array(unlist(data), dim = c(nobs, inp_shape))
-      # d_flat = data.table(do.call("cbind", imap(data, function(x,nm) {
-      #   x = do.call("rbind", map(x, 1))
-      #   colnames(x) = paste0(nm, ".", seq_len(ncol(x)))
-      #   return(x)
-      # })))
+
       d_train = arr[val$train,,]
       d_test = arr[val$test,,]
 
@@ -269,14 +265,19 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
       if (is.null(pv$objective)) {
         pv$objective = ifelse(nlvls == 2L, "binary:logistic", "multi:softprob")
       }
-
+      
       newdata = task$data(cols = task$feature_names)
-      newdata = data.table(do.call("cbind", imap(newdata, function(x,nm) {
-        x = do.call("rbind", map(x, 1))
-        colnames(x) = paste0(nm, ".", seq_len(ncol(x)))
-        return(x)
-      })))
-      newdata = xgb.DMatrix(data = model.matrix(~ ., data = newdata))
+      inp_shape = functional_input_shape(task)
+      nobs = nrow(newdata)
+      newdata = array(unlist(newdata), dim = c(nobs, inp_shape))
+
+      X = do.call("cbind", apply(newdata, 3, identity, simplify = FALSE))
+      # newdata = data.table(do.call("cbind", imap(newdata, function(x,nm) {
+      #   x = do.call("rbind", map(x, 1))
+      #   colnames(x) = paste0(nm, ".", seq_len(ncol(x)))
+      #   return(x)
+      # })))
+      newdata = xgb.DMatrix(data = X)
 
       pred = invoke(predict, model, newdata = newdata, .args = pv)
 
