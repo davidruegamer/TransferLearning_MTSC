@@ -1,7 +1,8 @@
 # devtools::install_github("https://github.com/mlr-org/mlr3tuningspaces")
-# reticulate::use_condaenv("deepregression")
+# devtools::install_github("https://github.com/mlr-org/mlr3tuningspaces")
+reticulate::use_condaenv("deepregression")
 library(reticulate)
-library(mlr3keras)
+library(mlr3keras) # mlr-org/mlr3keras
 library(mlr3misc)
 library(mlr3hyperband)
 library(checkmate)
@@ -12,6 +13,7 @@ library(dplyr)
 library(mlr3tuning)
 library(mlr3hyperband)
 library(mlr3tuningspaces)
+library(mlr3learners)
 source("code/mlr3keras.R")
 source("code/xgboost.R")
 if(file.exists(".RData")) file.remove(".RData")
@@ -114,7 +116,7 @@ xgb_at = AutoTuner$new(
   store_models = TRUE
 )
 
-
+xgb_at$train(gait)
 
 # -------------------------- Train ------------------------
 learners <- list (fcnet, fcnet2, fcnet4, fcnet8, 

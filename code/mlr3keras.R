@@ -221,7 +221,7 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
       # Scale x and one-hot y
       x = private$.scale(x, pars)
       y = self$architecture$transforms$y(factor(target[val$train]), pars)
-
+      
       # Augmentation
       res = private$.augment_data(x[val$train,,], y, pars)
       x_train_aug = res[[1]]

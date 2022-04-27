@@ -1,5 +1,5 @@
 # devtools::install_github("https://github.com/mlr-org/mlr3tuningspaces")
-# reticulate::use_condaenv("deepregression")
+reticulate::use_condaenv("deepregression")
 library(reticulate)
 library(mlr3keras)
 library(mlr3misc)
@@ -142,8 +142,23 @@ inception_at = AutoTuner$new(
 
 # -------------------------- Set Up XGBOOST ------------------------
 tune_space_xgb = mlr3tuningspaces::lts("classif.xgboost.default")
+aug_space = list(
+  augmentation_ratio = to_tune(0, 20),
+  jitter = to_tune(),
+  scaling = to_tune(),
+  permutation = to_tune(),
+  randompermutation = to_tune(),
+  magwarp = to_tune(),
+  timewarp = to_tune(),
+  windowslice = to_tune(),
+  windowwarp = to_tune(),
+  # rotation = to_tune(),
+  spawner = to_tune(),
+  dtwwarp = to_tune()
+)
 tune_space_xgb$values$nrounds = to_tune(p_int(lower = 1, upper = max_epochs, tags = "budget"))
-xgboost$param_set$values = insert_named(xgboost$param_set$values, tune_space_xgb$values) # comment out for default
+xgboost$param_set$values = insert_named(xgboost$param_set$values, c(aug_space, tune_space_xgb$values)) # comment out for default
+
 tuner = tnr("hyperband")
 
 xgb_at = AutoTuner$new(
@@ -158,6 +173,7 @@ xgb_at = AutoTuner$new(
 )
 
 
+xgb_at$train(gait)
 
 # -------------------------- Train ------------------------
 set.seed(seed)
