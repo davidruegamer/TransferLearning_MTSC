@@ -272,11 +272,7 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
       newdata = array(unlist(newdata), dim = c(nobs, inp_shape))
 
       X = do.call("cbind", apply(newdata, 3, identity, simplify = FALSE))
-      # newdata = data.table(do.call("cbind", imap(newdata, function(x,nm) {
-      #   x = do.call("rbind", map(x, 1))
-      #   colnames(x) = paste0(nm, ".", seq_len(ncol(x)))
-      #   return(x)
-      # })))
+
       newdata = xgb.DMatrix(data = X)
 
       pred = invoke(predict, model, newdata = newdata, .args = pv)
