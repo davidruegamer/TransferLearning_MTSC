@@ -35,7 +35,7 @@
 #' @export
 #' @template seealso_learner
 #' @template example
-LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
+LearnerClassifXgboostNoAugFDA = R6::R6Class("LearnerClassifXgboostNoAugFDA",
   inherit = LearnerClassif,
 
   public = list(
@@ -71,7 +71,7 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
         maximize                    = p_lgl(default = NULL, special_vals = list(NULL), tags = "train"),
         min_child_weight            = p_dbl(0, default = 1, tags = c("train", "control")),
         missing                     = p_dbl(default = NA, tags = c("train", "predict"), special_vals = list(NA, NA_real_, NULL)),
-        monotone_constraints        = p_uty(default = 0, tags = c("train", "control"), custom_check = function(x) {checkmate::check_integerish(x, lower = -1, upper = 1, any.missing = FALSE) }), # nolint
+        monotone_constraints        = p_uty(default = 0, tags = c("train", "control"), custom_check = function(x) {  checkmate::check_integerish(x, lower = -1, upper = 1, any.missing = FALSE) }), # nolint
         normalize_type              = p_fct(c("tree", "forest"), default = "tree", tags = "train"),
         nrounds                     = p_int(1L, tags = c("train", "hotstart")),
         nthread                     = p_int(1L, default = 1L, tags = c("train", "control", "threads")),
@@ -108,26 +108,7 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
         verbose                     = p_int(0L, 2L, default = 1L, tags = "train"),
         watchlist                   = p_uty(default = NULL, tags = "train"),
         validation_split            = p_dbl(lower = 0, upper = 1, tags = "train"),
-        xgb_model                   = p_uty(default = NULL, tags = "train"),
-        # Augmentation
-        augmentation_ratio = p_int(lower = 0, upper = Inf, tags = "train"),
-        jitter = p_lgl(tags = "train"),
-        scaling = p_lgl(tags = "train"),
-        permutation = p_lgl(tags = "train"),
-        randompermutation = p_lgl(tags = "train"),
-        magwarp = p_lgl(tags = "train"),
-        timewarp = p_lgl(tags = "train"),
-        windowslice = p_lgl(tags = "train"),
-        windowwarp = p_lgl(tags = "train"),
-        rotation = p_lgl(tags = "train"),
-        spawner = p_lgl(tags = "train"),
-        dtwwarp = p_lgl(tags = "train"),
-        shapedtwwarp = p_lgl(tags = "train"),
-        wdba = p_lgl(tags = "train"),
-        discdtw = p_lgl(tags = "train"),
-        discsdtw = p_lgl(tags = "train"),
-        center = p_lgl(tags = c("train", "predict")),
-        scale = p_lgl(tags = c("train", "predict"))
+        xgb_model                   = p_uty(default = NULL, tags = "train")
       )
       # param deps
       ps$add_dep("tweedie_variance_power", "objective", CondEqual$new("reg:tweedie"))
@@ -150,11 +131,7 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
       ps$add_dep("lambda_bias", "booster", CondEqual$new("gblinear"))
 
       # custom defaults
-      ps$values = list(nrounds = 1L, nthread = 1L, verbose = 0L, validation_split = 0.2, augmentation_ratio = 4L,
-        scaling = FALSE, permutation = FALSE, randompermutation = FALSE, magwarp = FALSE, timewarp = FALSE,
-        windowwarp = FALSE, rotation = FALSE, spawner = FALSE, dtwwarp = FALSE, shapedtwwarp = FALSE,
-        wdba = FALSE, discdtw = FALSE, discsdtw = FALSE, windowslice = FALSE,  jitter = TRUE,
-        center = TRUE, scale = TRUE)
+      ps$values = list(nrounds = 1L, nthread = 1L, verbose = 0L, validation_split = 0.2)
 
       super$initialize(
         id = "classif.xgboost",
@@ -164,7 +141,6 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
         properties = c("weights", "missings", "twoclass", "multiclass", "importance", "hotstart_forward"),
         packages = c("mlr3learners", "xgboost"),
         man = "mlr3learners::mlr_learners_classif.xgboost"
-
       )
     },
 
@@ -208,38 +184,21 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
       }))
       val = list(train = train, test = setdiff(idx, train))
 
-      inp_shape = functional_input_shape(task)
-      nobs = nrow(data)
-      data = map(data, function(ll) as.matrix(rbindlist(map(ll, function(x) as.list(unlist(x))))))
-      arr = sapply(seq_along(data), function(i) data[[i]],  simplify = "array")
-
-      d_train = arr[val$train,,]
-      d_test = arr[val$test,,]
+      d_flat = data.table(do.call("cbind", imap(data, function(x,nm) {
+        x = do.call("rbind", map(x, 1))
+        colnames(x) = paste0(nm, ".", seq_len(ncol(x)))
+        return(x)
+      })))
+      d_train = d_flat[val$train,]
+      d_test = d_flat[val$test,]
 
       # recode to 0:1 to that for the binary case the positive class translates to 1 (#32)
       # note that task$truth() is guaranteed to have the factor levels in the right order
       label = nlvls - as.integer(task$truth())
       y_d_train = label[val$train]
       y_d_test = label[val$test]
-
-
-      aug_pars = c("augmentation_ratio", "jitter", "scaling", "permutation", "randompermutation", 
-        "magwarp", "timewarp", "windowslice", "windowwarp", "rotation", 
-        "spawner", "dtwwarp", "shapedtwwarp", "wdba", "discdtw", "discsdtw", 
-        "center", "scale"
-      )
-
-      # Augmentation
-      y_d_train = keras::to_categorical(as.integer(y_d_train), num_classes = length(unique(y_d_train)))
-      res = private$.augment_data(d_train, y_d_train, pv[aug_pars])
-
-      X = do.call("cbind", apply(res[[1]], 3, identity, simplify = FALSE))
-      y = apply(res[[2]], 1, which.max) - 1L
-      d_test = do.call("cbind", apply(d_test, 3, identity, simplify = FALSE))
-
-      xgb_data = xgb.DMatrix(data = X, label = matrix(y, ncol=1))
-      xgb_data_test = xgb.DMatrix(data = d_test, label = matrix(y_d_test, ncol=1))
-      colnames(X) = colnames(d_test)
+      xgb_data = xgb.DMatrix(data = model.matrix(~ ., data = d_train), label = matrix(y_d_train, ncol=1))
+      xgb_data_test = xgb.DMatrix(data = model.matrix(~ ., data = d_test), label = matrix(y_d_test, ncol=1))
 
       pv$watchlist = list(train = xgb_data, eval = xgb_data_test)
       pv$objective = "multi:softprob"
@@ -251,7 +210,6 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
         xgboost::setinfo(data, "weight", task$weights$weight)
       }
 
-      pv = remove_named(pv, aug_pars)
       invoke(xgboost::xgb.train, data = xgb_data, .args = pv)
     },
 
@@ -266,16 +224,14 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
       if (is.null(pv$objective)) {
         pv$objective = ifelse(nlvls == 2L, "binary:logistic", "multi:softprob")
       }
-      
+
       newdata = task$data(cols = task$feature_names)
-      inp_shape = functional_input_shape(task)
-      nobs = nrow(newdata)
-
-      data = map(newdata, function(ll) as.matrix(rbindlist(map(ll, function(x) as.list(unlist(x))))))
-      arr = sapply(seq_along(data), function(i) data[[i]],  simplify = "array")
-      X = do.call("cbind", apply(arr, 3, identity, simplify = FALSE))
-
-      newdata = xgb.DMatrix(data = X)
+      newdata = data.table(do.call("cbind", imap(newdata, function(x,nm) {
+        x = do.call("rbind", map(x, 1))
+        colnames(x) = paste0(nm, ".", seq_len(ncol(x)))
+        return(x)
+      })))
+      newdata = xgb.DMatrix(data = model.matrix(~ ., data = newdata))
 
       pred = invoke(predict, model, newdata = newdata, .args = pv)
 
@@ -321,13 +277,6 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
       data = xgboost::xgb.DMatrix(data = data.matrix(data), label = label)
 
       invoke(xgboost::xgb.train, data = data, xgb_model = model, .args = pars)
-    },
-
-    .augment_data = function(x, y, pars = list()) {
-      pars = discard(pars[augment_args], is.null)
-      pars = do.call("list_to_args", pars)
-      aug = import_from_path("augmentation", "code/")
-      res = aug$run_augmentation(x, y, pars)
     }
   )
 )

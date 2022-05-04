@@ -16,6 +16,7 @@ library(mlr3tuningspaces)
 library(mlr3learners)
 source("code/mlr3keras.R")
 source("code/xgboost.R")
+source("code/xgboost_noaug.R")
 if(file.exists(".RData")) file.remove(".RData")
 
 #---------------------------------------------------------------------
@@ -92,7 +93,18 @@ ps <- fcnet$param_set$values
 ps$augmentation_ratio <- 8
 fcnet8$param_set$values <- ps
 
+set.seed(123L)
 xgboost = LearnerClassifXgboostFDA$new()
+no_aug = list(jitter = FALSE, center = FALSE, scale = FALSE, augmentation_ratio = 0, nrounds = 2)
+xgboost$param_set$values = insert_named(xgboost$param_set$values, no_aug)
+xgboost$train(gait)
+xgboost$predict(gait)$score(msr("classif.ce"))
+
+set.seed(123L)
+xgboost2 = LearnerClassifXgboostNoAugFDA$new()
+xgboost2$param_set$values$nrounds = 2
+xgboost2$train(gait)
+xgboost2$predict(gait)$score(msr("classif.ce"))
 
 #----------------------------------------------------------------------
 # Define Resampling
@@ -115,7 +127,7 @@ aug_space = list(
   spawner = to_tune(),
   dtwwarp = to_tune()
 )
-no_aug = list(jitter = FALSE, center = FALSE, scale = FALSE, augmentation_ratio = 0)
+
 xgboost$param_set$values = insert_named(xgboost$param_set$values, c(tune_space_xgb$values)) # comment out for default
 xgboost$param_set$values = insert_named(xgboost$param_set$values, no_aug)
 tuner = tnr("hyperband", eta = 3)
