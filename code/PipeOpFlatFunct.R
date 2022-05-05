@@ -11,7 +11,7 @@
 #'   See [`Selector`] for example functions. Default is selector_type("functional")`.
 #'   All features selected by this selector must be of type functional, otherwise an error is cast.
 #' @export
-PipeOpFlatFunct = R6Class("PipeOpFlatFunct",
+PipeOpFlatFunct = R6::R6Class("PipeOpFlatFunct",
   inherit = mlr3pipelines::PipeOpTaskPreprocSimple,
   public = list(
     initialize = function(id = "flatfunct", param_vals = list()) {
@@ -27,7 +27,7 @@ PipeOpFlatFunct = R6Class("PipeOpFlatFunct",
         id = id,
         param_set = ps(),
         param_vals = param_vals,
-        packages = c("mlr3fda", "mlr3pipelines"),
+        packages = c("mlr3pipelines"),
         feature_types = "functional"
       )
     }
@@ -38,27 +38,37 @@ PipeOpFlatFunct = R6Class("PipeOpFlatFunct",
       if (!length(cols)) {
         return(task)
       }
-      dt = task$data(cols = cols)
+      data = task$data(cols = cols)
 
-      # TODO: check that there are no name clashes
+      d_flat = data.table(do.call("cbind", imap(data, function(x,nm) {
+          x = do.call("rbind", map(x, 1))
+          colnames(x) = paste0(nm, ".", seq_len(ncol(x)))
+          return(x)
+        })))
 
-      # TODO: to be save we should write the .transform function (and not transform_dt), because
-      # we cannot ensure that we don't have name-clashes with the original data.table
-      flattened = imap(dt,
-        function(x, nm) {
-          flat = flatten_functional(x)
-          d = as.data.table(flat)
-          d
-        }
-      )
-      # convert to data.table and append names
-      dt_flat = invoke(cbind, .args = flattened)
-
-      task$select(setdiff(task$feature_names, cols))$cbind(dt_flat)
+      task$select(setdiff(task$feature_names, cols))$cbind(d_flat)
     }
   )
 )
 
+
+    flatten_functional = function(x) {
+      assert_class(x, "functional")
+      args = unlist(map(x, "arg"))
+      args = unique(args)
+      args = sort(args)
+
+      m = matrix(nrow = length(x), ncol = length(args))
+      colnames(m) = args
+      for (i in seq_along(x)) {
+        idx = match(x[[i]]$arg, args)
+        m[i, idx] = x[[i]]$value
+      }
+      return(m)
+    }
+    
+mlr_pipeops = utils::getFromNamespace("mlr_pipeops", ns = "mlr3pipelines")
+mlr_pipeops$add("flatfunct", PipeOpFlatFunct)
 #' `private$.get_state` must not change its input value in-place and must return
 #' something that will be written into `$state`
 #' (which must not be NULL), `private$.transform()` should modify its argument in-place;
