@@ -1,8 +1,8 @@
 # devtools::install_github("https://github.com/mlr-org/mlr3tuningspaces")
-# devtools::install_github("https://github.com/mlr-org/mlr3tuningspaces")
-reticulate::use_condaenv("deepregression")
+# devtools::install_github("mlr-org/mlr3keras")
+# reticulate::use_condaenv("deepregression")
 library(reticulate)
-library(mlr3keras) # mlr-org/mlr3keras
+library(mlr3keras) 
 library(mlr3misc)
 library(mlr3hyperband)
 library(checkmate)
@@ -14,8 +14,11 @@ library(mlr3tuning)
 library(mlr3hyperband)
 library(mlr3tuningspaces)
 library(mlr3learners)
+library(mlr3pipelines)
+library(R6)
 source("code/mlr3keras.R")
 source("code/xgboost.R")
+source("code/PipeOpFlatFunct.R")
 if(file.exists(".RData")) file.remove(".RData")
 
 #---------------------------------------------------------------------
@@ -97,7 +100,7 @@ xgboost = LearnerClassifXgboostFDA$new()
 #----------------------------------------------------------------------
 # Define Resampling
 set.seed(123)
-resampling = rsmp("cv", folds = 10)
+resampling = rsmp("cv", folds = 5)
 
 # -------------------------- Set Up XGBOOST ------------------------
 tune_space_xgb = mlr3tuningspaces::lts("classif.xgboost.default")
@@ -116,12 +119,14 @@ xgb_at = AutoTuner$new(
   store_models = TRUE
 )
 
-xgb_at$train(gait)
+# -------------------------- Set Up multinom reg ------------------------
+
+lrn_logreg <- as_learner( po("flatfunct") %>>% po("learner", lrn("classif.multionm")) )
 
 # -------------------------- Train ------------------------
 learners <- list (fcnet, fcnet2, fcnet4, fcnet8, 
                   inception, inception2, inception4, inception8, 
-                  xgb_at)
+                  xgb_at, lrn_logreg)
 
 design <- benchmark_grid(tasks = gait,
                          learners = learners,

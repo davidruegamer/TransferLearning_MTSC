@@ -3,7 +3,9 @@ library(tidyverse)
 library(ggplot2)
 library(mlr3)
 
-bmr <- readRDS("output/resampling_models_simple_woxgb.RDS")
+reticulate::use_condaenv("mlr3keras", required = TRUE)
+
+bmr <- readRDS("output/resampling_models_simple_xgbaug.RDS")
 
 measures <- list (msr("classif.acc"),
                   msr("classif.bacc"))
