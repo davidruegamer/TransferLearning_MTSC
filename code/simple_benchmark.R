@@ -1,6 +1,8 @@
 # devtools::install_github("https://github.com/mlr-org/mlr3tuningspaces")
 # devtools::install_github("mlr-org/mlr3keras")
 # reticulate::use_condaenv("deepregression")
+# reticulate::use_condaenv("mlr3keras", required = TRUE)
+
 library(reticulate)
 library(mlr3keras) 
 library(mlr3misc)
@@ -95,12 +97,22 @@ ps <- fcnet$param_set$values
 ps$augmentation_ratio <- 8
 fcnet8$param_set$values <- ps
 
+inception12 = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
+ps <- inception$param_set$values
+ps$augmentation_ratio <- 12
+inception12$param_set$values <- ps
+
+fcnet12 = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
+ps <- fcnet$param_set$values
+ps$augmentation_ratio <- 12
+fcnet12$param_set$values <- ps
+
 xgboost = LearnerClassifXgboostFDA$new()
 
 #----------------------------------------------------------------------
 # Define Resampling
 set.seed(123)
-resampling = rsmp("cv", folds = 5)
+resampling = rsmp("cv", folds = 10)
 
 # -------------------------- Set Up XGBOOST ------------------------
 tune_space_xgb = mlr3tuningspaces::lts("classif.xgboost.default")
@@ -121,12 +133,12 @@ xgb_at = AutoTuner$new(
 
 # -------------------------- Set Up multinom reg ------------------------
 
-lrn_logreg <- as_learner( po("flatfunct") %>>% po("learner", lrn("classif.multionm")) )
+logreg = as_learner( po("flatfunct") %>>% po("learner", lrn("classif.glmnet"), lambda = 0) )
 
 # -------------------------- Train ------------------------
-learners <- list (fcnet, fcnet2, fcnet4, fcnet8, 
-                  inception, inception2, inception4, inception8, 
-                  xgb_at, lrn_logreg)
+learners <- list (fcnet, fcnet2, fcnet4, fcnet8, fcnet12,
+                  inception, inception2, inception4, inception8, inception12,
+                  xgb_at, logreg)
 
 design <- benchmark_grid(tasks = gait,
                          learners = learners,
@@ -137,4 +149,4 @@ bmr <- benchmark(design,
                  store_backends = FALSE,
                  encapsulate = "none")
 
-saveRDS(bmr, file="output/resampling_models_simple_woxgb.RDS")
+saveRDS(bmr, file="output/final_result.RDS")

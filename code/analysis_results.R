@@ -5,7 +5,7 @@ library(mlr3)
 
 reticulate::use_condaenv("mlr3keras", required = TRUE)
 
-bmr <- readRDS("output/resampling_models_simple_xgbaug.RDS")
+bmr <- readRDS("output/resampling_models_xgbaug_lr.RDS")
 
 measures <- list (msr("classif.acc"),
                   msr("classif.bacc"))
@@ -17,14 +17,15 @@ resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
 resample_perf <- resample_perf %>% 
   mutate(
     learner_id = replace(learner_id, learner_id=="classif.xgboost.tuned", "XGBoost (tuned)"),
-    learner_id = replace(learner_id, learner_id=="fcnet" & nr==1, "FCNet (No Augm.)"),
+    learner_id = replace(learner_id, learner_id=="fcnet" & nr==1, "FCNet (Augm. x0)"),
     learner_id = replace(learner_id, learner_id=="fcnet" & nr==2, "FCNet (Augm. x2)"),
     learner_id = replace(learner_id, learner_id=="fcnet" & nr==3, "FCNet (Augm. x4)"),
     learner_id = replace(learner_id, learner_id=="fcnet" & nr==4, "FCNet (Augm. x8)"),
-    learner_id = replace(learner_id, learner_id=="inception" & nr==5, "InceptionNet (No Augm.)"),
-    learner_id = replace(learner_id, learner_id=="inception" & nr==6, "InceptionNet (Augm. x2)"),
-    learner_id = replace(learner_id, learner_id=="inception" & nr==7, "InceptionNet (Augm. x4)"),
-    learner_id = replace(learner_id, learner_id=="inception" & nr==8, "InceptionNet (Augm. x8)"),
+    learner_id = replace(learner_id, learner_id=="inception" & nr==5, "InceptionTime (Augm. x0)"),
+    learner_id = replace(learner_id, learner_id=="inception" & nr==6, "InceptionTime (Augm. x2)"),
+    learner_id = replace(learner_id, learner_id=="inception" & nr==7, "InceptionTime (Augm. x4)"),
+    learner_id = replace(learner_id, learner_id=="inception" & nr==8, "InceptionTime (Augm. x8)"),
+    learner_id = replace(learner_id, learner_id=="flatfunct.classif.glmnet", "Multinomial Logistic Regression")
 )
 
 resample_perf <- resample_perf %>% pivot_longer(classif.acc:classif.bacc)
