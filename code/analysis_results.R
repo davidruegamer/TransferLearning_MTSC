@@ -5,7 +5,7 @@ library(mlr3)
 
 reticulate::use_condaenv("mlr3keras", required = TRUE)
 
-bmr <- readRDS("output/resampling_models_xgbaug_lr.RDS")
+bmr <- readRDS("output/final_result.RDS")
 
 measures <- list (msr("classif.acc"),
                   msr("classif.bacc"))
@@ -21,10 +21,12 @@ resample_perf <- resample_perf %>%
     learner_id = replace(learner_id, learner_id=="fcnet" & nr==2, "FCNet (Augm. x2)"),
     learner_id = replace(learner_id, learner_id=="fcnet" & nr==3, "FCNet (Augm. x4)"),
     learner_id = replace(learner_id, learner_id=="fcnet" & nr==4, "FCNet (Augm. x8)"),
-    learner_id = replace(learner_id, learner_id=="inception" & nr==5, "InceptionTime (Augm. x0)"),
-    learner_id = replace(learner_id, learner_id=="inception" & nr==6, "InceptionTime (Augm. x2)"),
-    learner_id = replace(learner_id, learner_id=="inception" & nr==7, "InceptionTime (Augm. x4)"),
-    learner_id = replace(learner_id, learner_id=="inception" & nr==8, "InceptionTime (Augm. x8)"),
+    learner_id = replace(learner_id, learner_id=="fcnet" & nr==5, "FCNet (Augm. x12)"),
+    learner_id = replace(learner_id, learner_id=="inception" & nr==6, "InceptionTime (Augm. x0)"),
+    learner_id = replace(learner_id, learner_id=="inception" & nr==7, "InceptionTime (Augm. x2)"),
+    learner_id = replace(learner_id, learner_id=="inception" & nr==8, "InceptionTime (Augm. x4)"),
+    learner_id = replace(learner_id, learner_id=="inception" & nr==9, "InceptionTime (Augm. x8)"),
+    learner_id = replace(learner_id, learner_id=="inception" & nr==10, "InceptionTime (Augm. x12)"),
     learner_id = replace(learner_id, learner_id=="flatfunct.classif.glmnet", "Multinomial Logistic Regression")
 )
 
@@ -32,6 +34,16 @@ resample_perf <- resample_perf %>% pivot_longer(classif.acc:classif.bacc)
 resample_perf <- resample_perf %>% mutate(metric = recode(name, 
                                                           classif.acc = "Accuracy",
                                                           classif.bacc = "Balanced Accuracy")
+)
+
+resample_perf$learner_id <- factor(resample_perf$learner_id, 
+                                   levels = 
+                                     c("FCNet (Augm. x0)", "FCNet (Augm. x2)", "FCNet (Augm. x4)", 
+                                       "FCNet (Augm. x8)", "FCNet (Augm. x12)", "InceptionTime (Augm. x0)", 
+                                       "InceptionTime (Augm. x2)", "InceptionTime (Augm. x4)", 
+                                       "InceptionTime (Augm. x8)", "InceptionTime (Augm. x12)", 
+                                       "XGBoost (tuned)", "Multinomial Logistic Regression"
+                                     )
 )
 
 ggplot(resample_perf, aes(x = learner_id, y = value, fill = learner_id)) + 
