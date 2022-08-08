@@ -47,13 +47,19 @@ inception = LearnerClassifKerasFDAInception$new(id = "inception", architecture =
 ps <- inception$param_set$values
 ps$validation_split <- 0.2
 ps$augmentation_ratio <- 0
-ps$filters <- 50
+ps$filters <- 50L
 ps$lr <- exp(-5.6)
 ps$magwarp <- TRUE
 ps$spawner <- TRUE
 ps$dtwwarp <- TRUE
 ps$windowslice <- TRUE
+ps$epochs = 2L
 inception$param_set$values <- ps
+
+inception$train(gait)
+# Can change params in-between
+inception$transfer(gait)
+
 
 fcnet = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
 ps <- fcnet$param_set$values
@@ -65,7 +71,10 @@ ps$magwarp <- TRUE
 ps$spawner <- TRUE
 ps$dtwwarp <- TRUE
 ps$windowslice <- TRUE
+
 fcnet$param_set$values <- ps
+
+inc
 
 inception2 = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
 ps <- inception$param_set$values

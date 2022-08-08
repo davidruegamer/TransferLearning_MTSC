@@ -143,6 +143,9 @@ class Classifier_INCEPTION:
         keras.backend.clear_session()
 
         return hist.history
+    
+    def new_output_layer(self, nb_classes):
+        self.model.layers[-1] = keras.layers.Dense(nb_classes, activation='softmax')
 
     def predict(self, x_test, y_true, x_train, y_train, y_test, return_df_metrics=True):
         start_time = time.time()

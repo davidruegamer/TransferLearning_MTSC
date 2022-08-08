@@ -187,59 +187,6 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
     lr_find = function(task, epochs = 5L, lr_min = 10^-4, lr_max = 0.8, batch_size = 128L) {
       data = mlr3keras::find_lr(self$clone(), task, epochs, lr_min, lr_max, batch_size)
       plot_find_lr(data)
-    },
-    transfer = function(task) {
-
-      # Get trained model
-      mmodel = self$model
-      assert_list(mmodel)
-      assert_names(mmodel, must.include = c('model', 'history', 'class_names'))
-
-      browser()
-      base_model = mmodel$model
-      for (layer in base_model$layers)
-        layer$trainable = FALSE
-      
-
-      rows = sample(task$row_roles$use)
-      features = task$data(cols = task$feature_names, rows = rows)
-      target = task$data(cols = task$target_names, rows = rows)[[task$target_names]]
-      x = self$architecture$transforms$x(features, pars)
-      idx = seq_len(dim(x)[1])
-      train = unlist(map(split(idx, target), function(xc) {
-        if (length(xc) == 1L) return(xc) # R sample() is STUPID!
-        sample(xc, round((1 - pars$validation_split) * length(xc)))
-      }))
-      val = list(train = train, test = setdiff(idx, train))
-
-      # Scale training data, estimate from training data.
-      private$.get_scale_coefs(x[val$train,,])
-      x = private$.scale(x, pars)
-      y = self$architecture$transforms$y(factor(target[val$train]), pars)
-      
-      # Augmentation
-      res = private$.augment_data(x[val$train,,], y, pars)
-      x_train_aug = res[[1]]
-      y_train_aug = res[[2]]
-
-      # Scale validation data
-      if(length(val$test)==0  | pars$validation_split == 0){
-        x_val <- y_val <- NULL
-      }else{
-        x_val = private$.scale(x[val$test,,], pars)
-        y_val = self$architecture$transforms$y(target[val$test], pars)
-      }
-
-      history = model$fit(
-        x_train = x_train_aug,
-        y_train = y_train_aug,
-        x_val = x_val,
-        y_val = y_val,
-        y_true = y_val,
-        batch_size = pars$batch_size,
-        nb_epochs = pars$epochs
-      )
-      self$model = list(model = model, history = history, class_names = task$class_names)
     }
   ),
 
@@ -425,6 +372,59 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
     lr_find = function(task, epochs = 5L, lr_min = 10^-4, lr_max = 0.8, batch_size = 128L) {
       data = mlr3keras::find_lr(self$clone(), task, epochs, lr_min, lr_max, batch_size)
       plot_find_lr(data)
+    },
+    transfer = function(task) {
+      pars = self$param_set$values
+      # Get trained model
+      mmodel = self$model
+      assert_list(mmodel)
+      assert_names(names(mmodel), must.include = c('model', 'history', 'class_names'))
+
+      base_model = mmodel$model
+      base_model = freeze(base_model)
+
+      rows = sample(task$row_roles$use)
+      features = task$data(cols = task$feature_names, rows = rows)
+      target = task$data(cols = task$target_names, rows = rows)[[task$target_names]]
+      x = self$architecture$transforms$x(features, pars)
+      idx = seq_len(dim(x)[1])
+      train = unlist(map(split(idx, target), function(xc) {
+        if (length(xc) == 1L) return(xc) # R sample() is STUPID!
+        sample(xc, round((1 - pars$validation_split) * length(xc)))
+      }))
+      val = list(train = train, test = setdiff(idx, train))
+
+      # Scale training data, estimate from training data.
+      private$.get_scale_coefs(x[val$train,,])
+      x = private$.scale(x, pars)
+      y = self$architecture$transforms$y(factor(target[val$train]), pars)
+      
+      # Augmentation
+      res = private$.augment_data(x[val$train,,], y, pars)
+      x_train_aug = res[[1]]
+      y_train_aug = res[[2]]
+
+      # Scale validation data
+      if(length(val$test)==0  | pars$validation_split == 0){
+        x_val <- y_val <- NULL
+      }else{
+        x_val = private$.scale(x[val$test,,], pars)
+        y_val = self$architecture$transforms$y(target[val$test], pars)
+      }
+
+      # Reset last layer
+      base_model$new_output_layer(ncol(y))
+
+      history = base_model$fit(
+        x_train = x_train_aug,
+        y_train = y_train_aug,
+        x_val = x_val,
+        y_val = y_val,
+        y_true = y_val,
+        batch_size = pars$batch_size,
+        nb_epochs = pars$epochs
+      )
+      self$model = list(model = base_model, history = history, class_names = task$class_names, transfered=TRUE)
     }
   ),
 
@@ -609,3 +609,15 @@ fcnet_default = data.table(
   dtwwarp = FALSE,
   filters = 64L
 )
+
+freeze = function(base_model) {
+  for (layer in base_model$model$layers)
+    layer$trainable = FALSE
+  return(base_model)
+}
+
+unfreeze = function(base_model) {
+  for (layer in base_model$model$layers)
+    layer$trainable = TRUE
+  return(base_model)
+}
