@@ -53,12 +53,10 @@ ps$magwarp <- TRUE
 ps$spawner <- TRUE
 ps$dtwwarp <- TRUE
 ps$windowslice <- TRUE
-ps$epochs = 2L
 inception$param_set$values <- ps
-
-inception$train(gait)
-# Can change params in-between
-inception$transfer(gait)
+# inception$train(gait)
+# # Can change params in-between
+# inception$transfer(gait)
 
 
 fcnet = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
@@ -71,10 +69,7 @@ ps$magwarp <- TRUE
 ps$spawner <- TRUE
 ps$dtwwarp <- TRUE
 ps$windowslice <- TRUE
-
 fcnet$param_set$values <- ps
-
-inc
 
 inception2 = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
 ps <- inception$param_set$values
@@ -159,3 +154,16 @@ bmr <- benchmark(design,
                  encapsulate = "none")
 
 saveRDS(bmr, file="output/final_result.RDS")
+
+# train first model on other data
+# save weights
+# hyperparameter -> initial weights
+inception$train(other_task)
+inception$save_weights(my_path)
+inception$param_set$values$initial_weights = my_path
+
+for(i in 1:7){
+  inception$transfer(gait, row_ids = bmr$resamplings$resampling[[1]]$train_set(i))
+  inception$predict(gait, row_ids = bmr$resamplings$resampling[[1]]$test_set(i))
+}
+
