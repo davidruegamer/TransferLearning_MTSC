@@ -338,7 +338,8 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
         use_residual = p_lgl(tags = "train"),
         use_bottleneck = p_lgl(tags = "train"),
         kernel_size = p_int(lower = 1, upper = Inf, tags = "train"),
-        patience = p_int(lower = 0, upper = Inf, tags = "train")
+        patience = p_int(lower = 0, upper = Inf, tags = "train"),
+        initial_weights = p_uty(tags="train")
       )
       param_set$values = list(callbacks = list(), validation_split = 0, val_idx = NULL, augmentation_ratio = 4L,
         scaling = FALSE, permutation = FALSE, randompermutation = FALSE, magwarp = FALSE, timewarp = FALSE,
@@ -346,7 +347,7 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
         wdba = FALSE, discdtw = FALSE, discsdtw = FALSE, windowslice = FALSE,  jitter = TRUE,
         center = TRUE, scale = TRUE, batch_size = 128L, seed = 444L, depth = 3L, filters = 8L,
         lr = .00001, epochs = 1000L, use_residual = TRUE,
-        use_bottleneck = TRUE, kernel_size = 41L, patience = 50L
+        use_bottleneck = TRUE, kernel_size = 41L, patience = 50L, initial_weights = NULL
       )
 
       super$initialize(
@@ -373,17 +374,40 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
       data = mlr3keras::find_lr(self$clone(), task, epochs, lr_min, lr_max, batch_size)
       plot_find_lr(data)
     },
-    transfer = function(task) {
+    save_weights = function(filepath) {
+      assert_path_for_output(filepath)
+      if (is.null(self$model)) stop("Model must be trained before saving")
+      keras::save_model_hdf5(self$model$model$model, filepath)
+    },
+    load_model_from_file = function(filepath) {
+      assert_file_exists(filepath)
+      self$state$model$model$model = keras::load_model_hdf5(filepath)
+    },
+    transfer = function(task, row_ids = NULL) {
       pars = self$param_set$values
+
+      if (is.null(self$state)) {
+        # Construct / Get the model depending on task and hyperparams.
+        base_model = self$architecture$get_model(task, pars)
+        self$model = list(model = base_model, history = list(), class_names = character(0))
+      }
       # Get trained model
       mmodel = self$model
       assert_list(mmodel)
       assert_names(names(mmodel), must.include = c('model', 'history', 'class_names'))
 
+      if (!is.null(pars$initial_weights)) {
+        print("Loading weights")
+        self$load_model_from_file(pars$initial_weights)
+      }
+
       base_model = mmodel$model
       base_model = freeze(base_model)
 
-      rows = sample(task$row_roles$use)
+      if (is.null(row_ids)) {
+        row_ids = task$row_ids
+      }
+      rows = sample(row_ids)
       features = task$data(cols = task$feature_names, rows = rows)
       target = task$data(cols = task$target_names, rows = rows)[[task$target_names]]
       x = self$architecture$transforms$x(features, pars)
