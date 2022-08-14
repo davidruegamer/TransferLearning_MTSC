@@ -8,7 +8,13 @@ reticulate::use_condaenv("mlr3keras", required = TRUE)
 bmr <- readRDS("output/final_result.RDS")
 
 measures <- list (msr("classif.acc"),
-                  msr("classif.bacc"))
+                  msr("classif.bacc"),
+                  msr("classif.logloss"),
+                  msr("classif.mauc_au1p"),
+                  msr("classif.mauc_au1u"),
+                  msr("classif.mauc_aunp"),
+                  msr("classif.mauc_aunu"),
+                  msr("classif.mbrier"))
 
 resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
   as.data.frame() %>%

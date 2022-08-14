@@ -4,6 +4,7 @@
 # reticulate::use_condaenv("mlr3keras", required = TRUE)
 
 library(reticulate)
+library(keras)
 library(mlr3keras) 
 library(mlr3misc)
 library(mlr3hyperband)
@@ -111,23 +112,30 @@ ps <- fcnet$param_set$values
 ps$augmentation_ratio <- 12
 fcnet12$param_set$values <- ps
 
-xgboost = LearnerClassifXgboostFDA$new()
-
 #----------------------------------------------------------------------
 # Define Resampling
 set.seed(123)
 resampling = rsmp("cv", folds = 10)
 
+# -------------------------- Set Up Image TL  ------------------------
+
+tlNet = LearnerClassifKerasCNN$new()
+tlNet
+
 # -------------------------- Set Up XGBOOST ------------------------
+
+xgboostFDA = LearnerClassifXgboostFDA$new()
+
 tune_space_xgb = mlr3tuningspaces::lts("classif.xgboost.default")
 tune_space_xgb$values$nrounds = to_tune(p_int(lower = 1, upper = 50L, tags = "budget"))
-xgboost$param_set$values = insert_named(xgboost$param_set$values, tune_space_xgb$values) # comment out for default
+xgboost$param_set$values = insert_named(xgboostFDA$param_set$values, 
+                                        tune_space_xgb$values) # comment out for default
 tuner = tnr("hyperband")
 
 xgb_at = AutoTuner$new(
-  learner = xgboost,
+  learner = xgboostFDA,
   resampling = resampling,
-  measure = msr("classif.ce"),
+  measure = msr("classif.logloss"),
   terminator = trm("none"),
   tuner=tuner,
   store_tuning_instance = TRUE,

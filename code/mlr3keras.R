@@ -645,3 +645,100 @@ unfreeze = function(base_model) {
     layer$trainable = TRUE
   return(base_model)
 }
+
+
+LearnerClassifKerasCNN = R6::R6Class("LearnerClassifKeras",
+                                     inherit = mlr3keras::LearnerClassifKeras,
+                                     public = list(
+                                       initialize = function() {
+                                         ps = ParamSet$new(list(
+                                           ParamLgl$new("use_embedding", default = TRUE, tags = c("train", "predict")),
+                                           ParamUty$new("optimizer", default = "optimizer_adam(lr=3*10^-4)", tags = "train"),
+                                           ParamFct$new("loss", default = "categorical_crossentropy", tags = "train",  
+                                                        levels = keras_reflections$loss$classif),
+                                           ParamFct$new("output_activation", levels = c("softmax", "linear", "sigmoid"), 
+                                                        tags = "train"),
+                                           ParamUty$new("application", tags = "train"),
+                                           ParamInt$new("cl_layer_units", tags = "train", default = 1024L),
+                                           ParamInt$new("unfreeze_n_last_layers", tags = "train", default = 5L),
+                                           ParamUty$new("metrics", tags = "train"),
+                                           ParamDbl$new("validation_fraction", tags = "train", default = 0.2, lower = 0, upper = 1)
+                                         ))
+                                         ps$values = list(
+                                           application = keras::application_vgg16,
+                                           optimizer = optimizer_adam(lr = 3*10^-4),
+                                           loss = "categorical_crossentropy",
+                                           metrics = "accuracy",
+                                           cl_layer_units = 1024L,
+                                           output_activation = "softmax",
+                                           unfreeze_n_last_layers = 5L,
+                                           validation_fraction = 0.2,
+                                           use_embedding = FALSE
+                                         )
+                                         arch = KerasArchitectureFF$new(build_arch_fn = build_keras_pretrained_cnn_model, 
+                                                                        param_set = ps)
+                                         super$initialize(
+                                           feature_types = assert_character("functional"),
+                                           man = "mlr3keras::mlr_learners_classif.keras",
+                                           architecture = arch
+                                         )
+                                       }
+                                     )
+)
+
+#' @title Keras Neural Network Feed Forward architecture
+#' @rdname KerasArchitecture
+#' @family KerasArchitectures
+#' @export
+KerasArchitectureResNet = R6::R6Class("KerasArchitectureFF",
+                                      inherit = KerasArchitecture,
+                                      public = list(
+                                        initialize = function(build_arch_fn, param_set) {
+                                          super$initialize(
+                                            build_arch_fn = build_arch_fn, param_set = param_set,
+                                            x_transform = function(features, pars) {
+                                              inp_shape = functional_input_shape(features)
+                                              nobs = nrow(features)
+                                              features = map(features, function(ll) 
+                                                as.matrix(rbindlist(map(ll, function(x) as.list(unlist(x))))))
+                                              arr = array(unlist(features), dim = c(nobs, inp_shape[1], inp_shape[2]/3, 3))
+                                              arr = imager::resize(arr, size_y = 101, size_z = 101, interpolation_type = 5) %>% 
+                                                as.array()
+                                            })
+                                        }
+                                      )
+)
+
+
+
+# Builds a Keras Feed Forward Neural Network
+# @param task [`Task`] \cr
+#   A mlr3 Task.
+# @param pars [`list`] \cr
+#   A list of parameter values from the Learner(Regr|Classif)KerasFF param_set.
+# @template kerasff_description
+# @return A compiled keras model
+build_keras_pretrained_cnn_model = function(task, pars) {
+  base = pars$application(
+    include_top = FALSE,
+    weights = "imagenet",
+    input_tensor = NULL,
+    input_shape = c(101,101,3),
+    pooling = pars$pooling
+  )
+  model = keras_model(
+    inputs = base$input,
+    outputs = base$output %>%
+      layer_global_average_pooling_2d() %>%
+      layer_dense(units = pars$cl_layer_units, activation = "relu") %>%
+      layer_dense(units = length(task$class_names), activation = pars$output_activation)
+  )
+  freeze_weights(base)
+  # unfreeze_weights(base, from = length(base$layers) - pars$unfreeze_n_last_layers)
+  model$compile(
+    optimizer = pars$optimizer,
+    loss = pars$loss,
+    metrics = pars$metrics
+  )
+  return(model)
+}

@@ -158,7 +158,7 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
 
       super$initialize(
         id = "classif.xgboost",
-        predict_types = c("response", "prob"),
+        predict_types = c("prob", "response"),
         param_set = ps,
         feature_types = c("logical", "integer", "numeric", "functional"),
         properties = c("weights", "missings", "twoclass", "multiclass", "importance", "hotstart_forward"),
