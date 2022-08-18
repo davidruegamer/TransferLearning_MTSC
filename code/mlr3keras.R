@@ -675,10 +675,10 @@ LearnerClassifKerasCNN = R6::R6Class("LearnerClassifKeras",
                                            validation_fraction = 0.2,
                                            use_embedding = FALSE
                                          )
-                                         arch = KerasArchitectureFF$new(build_arch_fn = build_keras_pretrained_cnn_model, 
+                                         arch = KerasArchitectureResNet$new(build_arch_fn = build_keras_pretrained_cnn_model, 
                                                                         param_set = ps)
                                          super$initialize(
-                                           feature_types = assert_character("functional"),
+                                           feature_types =  c("functional"),
                                            man = "mlr3keras::mlr_learners_classif.keras",
                                            architecture = arch
                                          )
