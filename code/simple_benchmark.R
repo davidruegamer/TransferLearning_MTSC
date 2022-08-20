@@ -40,7 +40,7 @@ df = data.table(grp = as.factor(y))
 map(names(gr), function(x) {set(df, j = x, value = gr[[x]]); NULL})
 
 gait = TaskClassif$new("gait", df, target = "grp")
-
+# gait$filter(sample(gait$row_ids, 200))
 #---------------------------------------------------------------------
 # Learners
 
@@ -132,6 +132,7 @@ resampling = rsmp("cv", folds = 10)
 tlnet = LearnerClassifKerasCNN$new()
 tlnet$predict_types <- "prob"
 tlnet$param_set$values$unfreeze_n_last_layers <- 1L
+tlnet$param_set$values$cl_layer_units <- 256L
 
 # -------------------------- Set Up XGBOOST ------------------------
 
@@ -139,13 +140,13 @@ xgboostFDA = LearnerClassifXgboostFDA$new()
 
 tune_space_xgb = mlr3tuningspaces::lts("classif.xgboost.default")
 tune_space_xgb$values$nrounds = to_tune(p_int(lower = 1, upper = 50L, tags = "budget"))
-# xgboost$param_set$values = insert_named(xgboostFDA$param_set$values, 
-#                                         tune_space_xgb$values) # comment out for default
+xgboostFDA$param_set$values = insert_named(xgboostFDA$param_set$values,
+                                        tune_space_xgb$values) # comment out for default
 tuner = tnr("hyperband")
 
 xgb_at = AutoTuner$new(
   learner = xgboostFDA,
-  resampling = resampling,
+  resampling = rsmp("cv", folds = 3),
   measure = msr("classif.logloss"),
   terminator = trm("none"),
   tuner=tuner,

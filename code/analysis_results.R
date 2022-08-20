@@ -33,7 +33,8 @@ resample_perf <- resample_perf %>%
     learner_id = replace(learner_id, learner_id=="inception" & nr==8, "InceptionTime (Augm. x4)"),
     learner_id = replace(learner_id, learner_id=="inception" & nr==9, "InceptionTime (Augm. x8)"),
     learner_id = replace(learner_id, learner_id=="inception" & nr==10, "InceptionTime (Augm. x12)"),
-    learner_id = replace(learner_id, learner_id=="flatfunct.classif.glmnet", "Multinomial Logistic Regression")
+    learner_id = replace(learner_id, learner_id=="flatfunct.classif.glmnet", "Multinomial Logistic Regression"),
+    learner_id = replace(learner_id, learner_id=="classif.keras", "Transfer Learned Imagenet")
 )
 
 resample_perf <- resample_perf %>% pivot_longer(classif.acc:classif.bacc)
@@ -48,6 +49,7 @@ resample_perf$learner_id <- factor(resample_perf$learner_id,
                                        "FCNet (Augm. x8)", "FCNet (Augm. x12)", "InceptionTime (Augm. x0)", 
                                        "InceptionTime (Augm. x2)", "InceptionTime (Augm. x4)", 
                                        "InceptionTime (Augm. x8)", "InceptionTime (Augm. x12)", 
+                                       "Transfer Learned Imagenet",
                                        "XGBoost (tuned)", "Multinomial Logistic Regression"
                                      )
 )
@@ -73,3 +75,4 @@ resample_perf %>% filter(metric=="Balanced Accuracy") %>%
   summarise(mean_value = mean(value),
             median_value = median(value)) %>% 
   arrange(-mean_value)
+
