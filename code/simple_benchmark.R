@@ -45,7 +45,7 @@ gait = TaskClassif$new("gait", df, target = "grp")
 # Learners
 
 inception = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
-inception$predict_types <- "prob"
+inception$predict_type <- "prob"
 ps <- inception$param_set$values
 ps$validation_split <- 0.2
 ps$augmentation_ratio <- 0
@@ -62,7 +62,7 @@ inception$param_set$values <- ps
 
 
 fcnet = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
-fcnet$predict_types <- "prob"
+fcnet$predict_type <- "prob"
 ps <- fcnet$param_set$values
 ps$validation_split <- 0.2
 ps$augmentation_ratio <- 0
@@ -75,49 +75,49 @@ ps$windowslice <- TRUE
 fcnet$param_set$values <- ps
 
 inception2 = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
-inception2$predict_types <- "prob"
+inception2$predict_type <- "prob"
 ps <- inception$param_set$values
 ps$augmentation_ratio <- 2
 inception2$param_set$values <- ps
 
 fcnet2 = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
-fcnet2$predict_types <- "prob"
+fcnet2$predict_type <- "prob"
 ps <- fcnet$param_set$values
 ps$augmentation_ratio <- 2
 fcnet2$param_set$values <- ps
 
 inception4 = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
-inception4$predict_types <- "prob"
+inception4$predict_type <- "prob"
 ps <- inception$param_set$values
 ps$augmentation_ratio <- 4
 inception4$param_set$values <- ps
 
 fcnet4 = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
-fcnet4$predict_types <- "prob"
+fcnet4$predict_type <- "prob"
 ps <- fcnet$param_set$values
 ps$augmentation_ratio <- 4
 fcnet4$param_set$values <- ps
 
 inception8 = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
-inception8$predict_types <- "prob"
+inception8$predict_type <- "prob"
 ps <- inception$param_set$values
 ps$augmentation_ratio <- 8
 inception8$param_set$values <- ps
 
 fcnet8 = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
-fcnet8$predict_types <- "prob"
+fcnet8$predict_type <- "prob"
 ps <- fcnet$param_set$values
 ps$augmentation_ratio <- 8
 fcnet8$param_set$values <- ps
 
 inception12 = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
-inception12$predict_types <- "prob"
+inception12$predict_type <- "prob"
 ps <- inception$param_set$values
 ps$augmentation_ratio <- 12
 inception12$param_set$values <- ps
 
 fcnet12 = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
-fcnet12$predict_types <- "prob"
+fcnet12$predict_type <- "prob"
 ps <- fcnet$param_set$values
 ps$augmentation_ratio <- 12
 fcnet12$param_set$values <- ps
@@ -130,13 +130,14 @@ resampling = rsmp("cv", folds = 10)
 # -------------------------- Set Up Image TL  ------------------------
 
 tlnet = LearnerClassifKerasCNN$new()
-tlnet$predict_types <- "prob"
+tlnet$predict_type <- "prob"
 tlnet$param_set$values$unfreeze_n_last_layers <- 1L
 tlnet$param_set$values$cl_layer_units <- 256L
 
 # -------------------------- Set Up XGBOOST ------------------------
 
 xgboostFDA = LearnerClassifXgboostFDA$new()
+xgboostFDA$predict_type <- c("prob")
 
 tune_space_xgb = mlr3tuningspaces::lts("classif.xgboost.default")
 tune_space_xgb$values$nrounds = to_tune(p_int(lower = 1, upper = 50L, tags = "budget"))
@@ -158,6 +159,7 @@ xgb_at = AutoTuner$new(
 # -------------------------- Set Up multinom reg ------------------------
 
 logreg = as_learner( po("flatfunct") %>>% po("learner", lrn("classif.glmnet"), lambda = 0) )
+logreg$predict_type <- c("prob")
 
 # -------------------------- Train ------------------------
 learners <- list (fcnet, fcnet2, fcnet4, fcnet8, fcnet12,

@@ -158,7 +158,7 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
 
       super$initialize(
         id = "classif.xgboost",
-        predict_types = c("prob", "response"),
+        predict_types = c("prob"),
         param_set = ps,
         feature_types = c("logical", "integer", "numeric", "functional"),
         properties = c("weights", "missings", "twoclass", "multiclass", "importance", "hotstart_forward"),
@@ -229,13 +229,16 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
         "center", "scale"
       )
 
+      # browser()
       # Augmentation
       y_d_train = keras::to_categorical(as.integer(y_d_train), num_classes = length(unique(y_d_train)))
       res = private$.augment_data(d_train, y_d_train, pv[aug_pars])
 
-      X = do.call("cbind", apply(res[[1]], 3, identity, simplify = FALSE))
+      dim_res_1 <- dim(res[[1]])
+      X = array(res[[1]], dim=c(dim_res_1[1], prod(dim_res_1[2:3])))
       y = apply(res[[2]], 1, which.max) - 1L
-      d_test = do.call("cbind", apply(d_test, 3, identity, simplify = FALSE))
+      dim_test <- dim(d_test)
+      d_test = array(d_test, dim=c(dim_test[1], prod(dim_test[2:3])))
 
       xgb_data = xgb.DMatrix(data = X, label = matrix(y, ncol=1))
       xgb_data_test = xgb.DMatrix(data = d_test, label = matrix(y_d_test, ncol=1))
@@ -273,7 +276,8 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
 
       data = map(newdata, function(ll) as.matrix(rbindlist(map(ll, function(x) as.list(unlist(x))))))
       arr = sapply(seq_along(data), function(i) data[[i]],  simplify = "array")
-      X = do.call("cbind", apply(arr, 3, identity, simplify = FALSE))
+      dim_arr <- dim(arr)
+      X = array(arr, dim=c(dim_arr[1], prod(dim_arr[2:3])))
 
       newdata = xgb.DMatrix(data = X)
 
