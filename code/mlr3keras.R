@@ -48,7 +48,7 @@ build_inceptionnet = function(task, pars) {
     batch_size = 128L,
     lr = pars$lr,
     nb_epochs = pars$epochs,
-    monitor_metric='val_accuracy',
+    monitor_metric='val_loss',
     callbacks=pars$callbacks
   )
 }
@@ -72,7 +72,7 @@ build_fcnet = function(task, pars) {
       filters=pars$filters,
       lr = pars$lr,
       patience = pars$patience,
-      monitor_metric='val_accuracy',
+      monitor_metric='val_loss',
       callbacks=pars$callbacks
     )
 }
