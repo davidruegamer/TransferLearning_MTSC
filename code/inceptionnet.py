@@ -7,7 +7,7 @@ class Classifier_INCEPTION:
 
     def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, batch_size=64, lr=0.001,
                  nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=41, nb_epochs=1500,
-                 patience=60, monitor_metric='val_accuracy', save=False, callbacks=[]):
+                 patience=60, monitor_metric='val_loss', save=False, callbacks=[]):
 
         self.output_directory = output_directory
 

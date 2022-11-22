@@ -6,7 +6,7 @@ import time
 class Classifier_FCN:
 
 	def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, 
-	    lr = 0.00001, filters=128, patience=50, monitor_metric='val_accuracy', callbacks=[]):
+	    lr = 0.00001, filters=128, patience=50, monitor_metric='val_loss', callbacks=[]):
      
 		self.output_directory = output_directory
         

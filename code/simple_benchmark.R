@@ -176,3 +176,4 @@ bmr <- benchmark(design,
                  encapsulate = "none")
 
 saveRDS(bmr, file="output/final_result.RDS")
+
