@@ -80,22 +80,27 @@ resample_perf$learner_id <- factor(resample_perf$learner_id,
 )
 
 ### load TL results
-lf <- list.files("output/TL", full.names = T)
-res_TL <- do.call("rbind", lapply(lf, function(fln){
-  
-  rr <- read.csv(fln)[,-1]
-  probmat <- as.matrix(rr[,1:5])
-  colnames(probmat) <- 1:5
-  truth <- as.factor(rr$truth)
-  rres <- measures_man(truth, probmat)
-  return(data.frame(
-    metric = unique(resample_perf$metric),
-    value = rres,
-    dataset = gsub("output/TL/(.*)\\_[0-9]\\.csv", "\\1", fln),
-    iter = gsub("output/TL/(.*)\\_([0-9])\\.csv", "\\2", fln)
-  ))
-  
-}))
+if(!file.exists("output/resultTL.RDS")){
+  lf <- list.files("output/TL", full.names = T)
+  res_TL <- do.call("rbind", lapply(lf, function(fln){
+    
+    rr <- read.csv(fln)[,-1]
+    probmat <- as.matrix(rr[,1:5])
+    colnames(probmat) <- 1:5
+    truth <- as.factor(rr$truth)
+    rres <- measures_man(truth, probmat)
+    return(data.frame(
+      metric = unique(resample_perf$metric),
+      value = rres,
+      dataset = gsub("output/TL/(.*)\\_[0-9]\\.csv", "\\1", fln),
+      iter = gsub("output/TL/(.*)\\_([0-9])\\.csv", "\\2", fln)
+    ))
+    
+  }))
+  saveRDS(res_TL, "output/resultTL.RDS")
+}else{
+  res_TL <- readRDS("output/resultTL.RDS")
+}
 
 ggplot(res_TL %>% filter(
   !metric %in% c("Weighted Multiclass AUC (1vsAll)", "Average Multiclass AUC (1vsAll)")
