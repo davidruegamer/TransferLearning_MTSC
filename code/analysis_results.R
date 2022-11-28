@@ -107,7 +107,7 @@ ggplot(res_TL %>% filter(
 ), aes(x = dataset, y = value, fill = dataset)) +
   geom_boxplot() + facet_wrap(~ metric, scales = "free_y") +
   theme_bw() + theme() + xlab("") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   guides(fill="none")
 
 ggsave(width=8, height=5, file="results_TL.pdf")
