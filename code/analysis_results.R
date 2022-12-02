@@ -80,8 +80,8 @@ resample_perf$learner_id <- factor(resample_perf$learner_id,
 )
 
 ### load TL results
-if(!file.exists("output/resultTL.RDS")){
-  lf <- list.files("output/TL", full.names = T)
+if(!file.exists("output/resultTL_AUG.RDS")){
+  lf <- list.files("output/TL_AUG", full.names = T)
   res_TL <- do.call("rbind", lapply(lf, function(fln){
     
     rr <- read.csv(fln)[,-1]
@@ -92,15 +92,18 @@ if(!file.exists("output/resultTL.RDS")){
     return(data.frame(
       metric = unique(resample_perf$metric),
       value = rres,
-      dataset = gsub("output/TL/(.*)\\_[0-9]\\.csv", "\\1", fln),
-      iter = gsub("output/TL/(.*)\\_([0-9])\\.csv", "\\2", fln)
+      dataset = gsub("output/TL_AUG/(.*)\\_aug\\_x(.*)\\_fold\\_([0-9])\\.csv", "\\1", fln),
+      iter = gsub("output/TL_AUG/(.*)\\_aug\\_x(.*)\\_fold\\_([0-9])\\.csv", "\\3", fln),
+      augx = gsub("output/TL_AUG/(.*)\\_aug\\_x(.*)\\_fold\\_([0-9])\\.csv", "\\2", fln)
     ))
     
   }))
-  saveRDS(res_TL, "output/resultTL.RDS")
+  saveRDS(res_TL, "output/resultTL_AUG.RDS")
 }else{
-  res_TL <- readRDS("output/resultTL.RDS")
+  res_TL <- readRDS("output/resultTL_AUG.RDS")
 }
+
+res_TL$augx <- factor(res_TL$augx, levels=c("0", "2", "4", "8", "12"))
 
 ggplot(res_TL %>% filter(
   !metric %in% c("Weighted Multiclass AUC (1vsAll)", "Average Multiclass AUC (1vsAll)")
@@ -114,8 +117,8 @@ ggsave(width=8, height=5, file="results_TL.pdf")
 
 ggplot(res_TL %>% filter(
   metric %in% c("Log-loss")
-), aes(x = dataset, y = value, fill = dataset)) +
-  geom_boxplot() + facet_wrap(~ metric, scales = "free_y") +
+), aes(x = dataset, y = value, fill = augx)) +
+  geom_boxplot() + 
   theme_bw() + theme() + xlab("") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   guides(fill="none")
@@ -123,26 +126,57 @@ ggplot(res_TL %>% filter(
 ggsave(width=8, height=5, file="results_TL_logloss.pdf")
 
 ggplot(res_TL %>% filter(
-  metric %in% c("Balanced Accuracy")
-), aes(x = dataset, y = value, fill = dataset)) +
-  geom_boxplot() + facet_wrap(~ metric, scales = "free_y") +
+  !metric %in% c("Weighted Multiclass AUC (1vsAll)", "Average Multiclass AUC (1vsAll)")
+), aes(x = augx, y = value, fill = dataset)) +
+  geom_boxplot() + facet_wrap(~metric, scales="free_y") + 
   theme_bw() + theme() + xlab("") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   guides(fill="none")
+
+ggsave(width=8, height=5, file="results_TL_metric_per_augx.pdf")
+
+ggplot(res_TL %>% filter(
+  metric %in% c("Balanced Accuracy")
+), aes(x = dataset, y = value, colour = dataset)) +
+  geom_point(aes(shape = augx)) + facet_wrap(~ metric, scales = "free_y") +
+  theme_bw() + theme() + xlab("") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  guides(colour="none")
 
 res_TL %>% group_by(dataset, metric) %>% 
   summarize(value = mean(value)) %>% 
   ggplot(aes(x = metric, y = value)) + geom_boxplot()
 
-bestDataset <- res_TL %>% group_by(dataset, metric) %>% 
-  summarize(value = mean(value)) %>% filter(metric=="Log-loss") %>% 
-  arrange(value) %>% pull(dataset)
+agg_res_TL <- res_TL %>% group_by(dataset, metric, augx) %>% 
+  summarize(value = mean(value))
 
-perf_best <- res_TL %>% 
-  filter(dataset==bestDataset[1]) %>% 
-  dplyr::select(metric, value, iter) %>% 
-  rename(iteration = iter)
-perf_best$learner_id <- "Transfer Learned UCR"
+ggplot(agg_res_TL %>% pivot_wider(names_from = c(metric), 
+                                  values_from = value), 
+       aes(x=`Balanced Accuracy`, y=-`Log-loss`, colour = augx)) + 
+  geom_point() + theme_bw()
+
+# bestDataset <- res_TL %>% group_by(dataset, metric, augx) %>% 
+#   summarize(value = mean(value)) %>% filter(metric=="Balanced Accuracy") %>% 
+#   arrange(-value) %>% pull(dataset, augx)
+# 
+# perf_TL <- res_TL %>% 
+#   filter(dataset==bestDataset[2]) %>% 
+#   dplyr::select(metric, value, iter) %>% 
+#   rename(iteration = iter)
+
+perf_TL <- res_TL %>% 
+  rename(iteration = iter) %>% 
+  mutate(
+    learner_id = paste0("Transfer Learned UCR (Augm. x", augx, ")")
+  )
+
+perf_TL$learner_id <- factor(perf_TL$learner_id,
+                                   levels =
+                                     c("Transfer Learned UCR (Augm. x0)",
+                                       "Transfer Learned UCR (Augm. x2)", "Transfer Learned UCR (Augm. x4)",
+                                       "Transfer Learned UCR (Augm. x8)", "Transfer Learned UCR (Augm. x12)"
+                                     )
+)
 
 ### check correlation between metrics
 resample_perf %>% 
@@ -164,7 +198,8 @@ resample_perf %>%
 # use MBS, ACC, WAUC1  
 
 ### check metrics
-ggplot(resample_perf %>% dplyr::select(learner_id, value, iteration, metric) %>% rbind(perf_best) %>% 
+ggplot(resample_perf %>% dplyr::select(learner_id, value, iteration, metric) %>% 
+         rbind(perf_TL %>% select(learner_id, value, iteration, metric)) %>% 
          filter(
            !metric %in% c("Weighted Multiclass AUC (1vsAll)", "Average Multiclass AUC (1vsAll)", 
                           "Average Multiclass AUC (1vs1)", "Accuracy")
@@ -187,7 +222,21 @@ med_lr <- resample_perf %>% dplyr::select(learner_id, value, iteration, metric) 
   group_by(metric) %>% 
   summarise(median(value)) %>% c
 
-cross_data <- resample_perf %>% dplyr::select(learner_id, value, iteration, metric) %>% rbind(perf_best) %>% 
+perf_TL_best <- perf_TL
+
+perf_TL_best[perf_TL_best$metric=="Log-loss","value"] <-
+  - perf_TL_best[perf_TL_best$metric=="Log-loss","value"]
+
+perf_TL_best <- 
+  perf_TL_best %>% group_by(learner_id, metric, iteration) %>% 
+  summarise(value = max(value))
+
+perf_TL_best[perf_TL_best$metric=="Log-loss","value"] <-
+  - perf_TL_best[perf_TL_best$metric=="Log-loss","value"]
+
+cross_data <- resample_perf %>% 
+                    dplyr::select(learner_id, value, iteration, metric) %>% 
+  rbind(perf_TL_best) %>% 
   filter(
     metric %in% c("Log-loss", "Balanced Accuracy")
   ) %>% 
@@ -209,8 +258,8 @@ ggplot() +
   geom_errorbar(data=cross_data, aes(x = xmean, y = ymean, ymin = ymin, ymax = ymax, colour = learner_id)) + 
   geom_errorbarh(data=cross_data, aes(x = xmean, y = ymean, xmin = xmin, xmax = xmax, colour = learner_id)) + 
   ylab("Balanced Accuracy") + xlab("Negative Log-loss") + 
-  theme(legend.title = element_blank()) + 
-  theme_bw()
+  theme_bw() +
+  theme(legend.title = element_blank())
 
 ggsave(width=6, height=5, file="results2.pdf")
 
