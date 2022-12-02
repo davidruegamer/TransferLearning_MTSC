@@ -41,3 +41,8 @@ vignettes/*.pdf
 *.pyc
 
 */__pycache__
+code/ukri_plot.R
+
+results.png
+
+results.tiff

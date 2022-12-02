@@ -38,7 +38,7 @@ resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
   as.data.frame() %>%
   dplyr::select (nr, task_id, learner_id, resampling_id, iteration, matches ("classif."))
 
-resample_perf <- resample_perf %>% 
+resample_perf <- resample_perf %>%
   mutate(
     learner_id = replace(learner_id, learner_id=="classif.xgboost.tuned", "XGBoost (tuned)"),
     learner_id = replace(learner_id, learner_id=="fcnet" & nr==1, "FCNet (Augm. x0)"),
@@ -59,11 +59,11 @@ resample_perf <- resample_perf %>% pivot_longer(classif.acc:classif.mbrier)
 resample_perf <- resample_perf %>% mutate(metric = recode(name,
                                                           classif.acc = "Accuracy",
                                                           classif.bacc = "Balanced Accuracy",
-                                                          classif.logloss = "Log-loss",   
+                                                          classif.logloss = "Log-loss",
                                                           classif.mauc_au1p = "Weighted Multiclass AUC (1vs1)",
                                                           classif.mauc_au1u = "Average Multiclass AUC (1vs1)",
                                                           classif.mauc_aunp = "Weighted Multiclass AUC (1vsAll)",
-                                                          classif.mauc_aunu = "Average Multiclass AUC (1vsAll)", 
+                                                          classif.mauc_aunu = "Average Multiclass AUC (1vsAll)",
                                                           classif.mbrier = "Multiclass Brier Score"
                                                           )
 )
@@ -110,7 +110,7 @@ ggplot(res_TL %>% filter(
 ), aes(x = dataset, y = value, fill = dataset)) +
   geom_boxplot() + facet_wrap(~ metric, scales = "free_y") +
   theme_bw() + theme() + xlab("") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   guides(fill="none")
 
 ggsave(width=8, height=5, file="results_TL.pdf")
@@ -207,7 +207,7 @@ ggplot(resample_perf %>% dplyr::select(learner_id, value, iteration, metric) %>%
   aes(x = learner_id, y = value, fill = learner_id)) +
   geom_boxplot() + facet_wrap(~ metric, scales = "free_y") +
   theme_bw() + theme() + xlab("") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   guides(fill="none")
 
 ggsave(width=6, height=5, file="results.pdf")
@@ -267,8 +267,8 @@ ggsave(width=6, height=5, file="results2.pdf")
 ### check predictions
 preds <- do.call("rbind", lapply(1:length(bmr$resample_results$resample_result), function(learner){
   preds <- bmr$resample_results$resample_result[[learner]]$predictions()
-  cbind(do.call("rbind", lapply(1:length(preds), function(i) cbind(as.data.table(preds[[i]]), 
-                                                             fold=i))), 
+  cbind(do.call("rbind", lapply(1:length(preds), function(i) cbind(as.data.table(preds[[i]]),
+                                                             fold=i))),
         learner_id = levels(resample_perf$learner_id)[learner])
 }))
 
@@ -280,18 +280,23 @@ preds_long <- preds_long %>% mutate(name = recode(name,
                                                   prob.4 = "Class 4",
                                                   prob.5 = "Class 5")
 )
-                                                          
-ggplot(preds_long, aes(fill=name, y=value, x=learner_id)) + 
-  geom_hline(yintercept = 0.2, linetype=1, alpha=0.3) + 
+
+ggplot(preds_long, aes(fill=name, y=value, x=learner_id)) +
+  geom_hline(yintercept = 0.2, linetype=1, alpha=0.3) +
   geom_boxplot(outlier.size = 0.01) +
   theme_bw() + theme(legend.title = element_blank()) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   xlab("") + ylab("Predicted Probability")
 
+<<<<<<< Updated upstream
 ggsave(width=8, height=5, file="preds.pdf")
 
 ggplot(preds_long, aes(fill=learner_id, y=value, x=name)) + 
   geom_hline(yintercept = 0.2, linetype=1, alpha=0.3) + 
+=======
+ggplot(preds_long, aes(fill=learner_id, y=value, x=name)) +
+  geom_hline(yintercept = 0.2, linetype=1, alpha=0.3) +
+>>>>>>> Stashed changes
   geom_boxplot(outlier.size = 0.01) +
   theme_bw() + theme(legend.title = element_blank()) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
