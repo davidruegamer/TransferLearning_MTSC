@@ -62,7 +62,6 @@ build_fcnet = function(task, pars) {
     nclasses = length(levels(task$truth()))
     fcn = import_from_path("fcn", path = "code/")
 
-    print(pars$filters, pars$lr)
     fcn$Classifier_FCN(
       output_directory = output_directory,
       input_shape = as.integer(inp_shape),
@@ -180,7 +179,11 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
           if (is.data.frame(target)) {
             target = unlist(target)
           }
-          y = keras::to_categorical(as.integer(target) - 1, num_classes = length(levels(target)))
+          if (length(unique(y)) > 2) {
+            y = keras::to_categorical(as.integer(target) - 1, num_classes = length(levels(target)))
+          } else {
+            y = matrix(as.integer(target) - 1)
+          }
         }
       )
     },
@@ -220,7 +223,7 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
       # Scale x and one-hot y
       x = private$.scale(x, pars)
       y = self$architecture$transforms$y(factor(target[val$train]), pars)
-      
+
       # Augmentation
       res = private$.augment_data(x[val$train,,], y, pars)
       x_train_aug = res[[1]]
@@ -236,10 +239,10 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
 
       history = model$fit(
         x_train = x_train_aug,
-        y_train = y_train_aug,
+        y_train = matrix(y_train_aug),
         x_val = x_val,
-        y_val = y_val,
-        y_true = y_val,
+        y_val = matrix(y_val),
+        y_true = matrix(y_val),
         batch_size = pars$batch_size,
         nb_epochs = pars$epochs
       )
@@ -366,7 +369,11 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
           if (is.data.frame(target)) {
             target = unlist(target)
           }
-          y = keras::to_categorical(as.integer(target) - 1, num_classes = length(levels(target)))
+          if (length(unique(y)) > 2) {
+            y = keras::to_categorical(as.integer(target) - 1, num_classes = length(levels(target)))
+          } else {
+            y = matrix(as.integer(target) - 1)
+          }
         }
       )
     },
@@ -422,7 +429,7 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
       private$.get_scale_coefs(x[val$train,,])
       x = private$.scale(x, pars)
       y = self$architecture$transforms$y(factor(target[val$train]), pars)
-      
+
       # Augmentation
       res = private$.augment_data(x[val$train,,], y, pars)
       x_train_aug = res[[1]]
@@ -441,10 +448,10 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
 
       history = base_model$fit(
         x_train = x_train_aug,
-        y_train = y_train_aug,
+        y_train = matrix(y_train_aug),
         x_val = x_val,
-        y_val = y_val,
-        y_true = y_val,
+        y_val = matrix(y_val),
+        y_true = matrix(y_val),
         batch_size = pars$batch_size,
         nb_epochs = pars$epochs
       )
@@ -503,10 +510,10 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
 
       history = model$fit(
         x_train = x_train_aug,
-        y_train = y_train_aug,
+        y_train = matrix(y_train_aug),
         x_val = x_val,
-        y_val = y_val,
-        y_true = y_val,
+        y_val = matrix(y_val),
+        y_true = matrix(y_val),
         batch_size = pars$batch_size,
         nb_epochs = pars$epochs
       )
@@ -551,7 +558,7 @@ LearnerClassifKerasFDAInception = R6::R6Class("LearnerClassifKerasFDA", inherit 
           x[i,,] = x[i,,] - private$.scale_coefs$mean
         }
         if (pars$scale) {
-          x[i,,] = x[i,,] / sqrt(private$.scale_coefs$var)
+          x[i,,] = x[i,,] / (sqrt(private$.scale_coefs$var) + 1e-3)
         }
       }
       return(x)
@@ -654,9 +661,9 @@ LearnerClassifKerasCNN = R6::R6Class("LearnerClassifKeras",
                                          ps = ParamSet$new(list(
                                            ParamLgl$new("use_embedding", default = TRUE, tags = c("train", "predict")),
                                            ParamUty$new("optimizer", default = "optimizer_adam(lr=3*10^-4)", tags = "train"),
-                                           ParamFct$new("loss", default = "categorical_crossentropy", tags = "train",  
+                                           ParamFct$new("loss", default = "categorical_crossentropy", tags = "train",
                                                         levels = keras_reflections$loss$classif),
-                                           ParamFct$new("output_activation", levels = c("softmax", "linear", "sigmoid"), 
+                                           ParamFct$new("output_activation", levels = c("softmax", "linear", "sigmoid"),
                                                         tags = "train"),
                                            ParamUty$new("application", tags = "train"),
                                            ParamInt$new("cl_layer_units", tags = "train", default = 1024L),
@@ -675,7 +682,7 @@ LearnerClassifKerasCNN = R6::R6Class("LearnerClassifKeras",
                                            validation_fraction = 0.2,
                                            use_embedding = FALSE
                                          )
-                                         arch = KerasArchitectureResNet$new(build_arch_fn = build_keras_pretrained_cnn_model, 
+                                         arch = KerasArchitectureResNet$new(build_arch_fn = build_keras_pretrained_cnn_model,
                                                                         param_set = ps)
                                          super$initialize(
                                            feature_types =  c("functional"),
@@ -699,10 +706,10 @@ KerasArchitectureResNet = R6::R6Class("KerasArchitectureFF",
                                             x_transform = function(features, pars) {
                                               inp_shape = functional_input_shape(features)
                                               nobs = nrow(features)
-                                              features = map(features, function(ll) 
+                                              features = map(features, function(ll)
                                                 as.matrix(rbindlist(map(ll, function(x) as.list(unlist(x))))))
                                               arr = array(unlist(features), dim = c(nobs, inp_shape[1], inp_shape[2]/3, 3))
-                                              arr = imager::resize(arr, size_y = 101, size_z = 101, interpolation_type = 5) %>% 
+                                              arr = imager::resize(arr, size_y = 101, size_z = 101, interpolation_type = 5) %>%
                                                 as.array()
                                             })
                                         }
