@@ -195,6 +195,8 @@ LearnerClassifKerasFDAFCN = R6::R6Class("LearnerClassifKerasFDA", inherit = mlr3
 
   private = list(
     .train = function(task) {
+      
+      # browser()
 
       pars = self$param_set$get_values(tags = "train")
       # Set seed

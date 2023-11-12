@@ -5,7 +5,7 @@
 
 library(reticulate)
 library(keras)
-library(mlr3keras)
+library(mlr3keras) 
 library(mlr3misc)
 library(mlr3hyperband)
 library(checkmate)
@@ -18,8 +18,9 @@ library(mlr3hyperband)
 library(mlr3tuningspaces)
 library(mlr3learners)
 library(mlr3pipelines)
+pvec2mat <- mlr3learners:::pvec2mat
 library(R6)
-source("code/mlr3keras.R")
+source("code/mlr3keras_bin.R")
 source("code/xgboost.R")
 source("code/PipeOpFlatFunct.R")
 if(file.exists(".RData")) file.remove(".RData")
@@ -30,23 +31,22 @@ data <- readRDS("data/trans_learn.RDS")
 pfps <- data$pfps
 pfps$grp <- as.factor(pfps$grp)
 nclasses <- nlevels(pfps$grp)
-pfps$grp <- as.numeric(pfps$grp)
+pfps$grp <- as.numeric(pfps$grp)-1
+pfps[1:6] <- lapply(pfps[1:6], as_tibble)
 y = pfps$grp
 pfps$grp = NULL
-pfps <- lapply(pfps, function(x) x[,1:100])
 
 # Convert to functional
 gr = map(pfps, as_functional)
 df = data.table(grp = as.factor(y))
 map(names(gr), function(x) {set(df, j = x, value = gr[[x]]); NULL})
 
-gait = TaskClassif$new("pfps", df, target = "grp")
+pfps = TaskClassif$new("pfps", df, target = "grp")
+# pfps$filter(sample(pfps$row_ids, 200))
 #---------------------------------------------------------------------
 # Learners
 
-inception = LearnerClassifKerasFDAInception$new(
-  id = "inception", 
-  architecture = KerasArchitectureInceptionNet$new())
+inception = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
 inception$predict_type <- "prob"
 ps <- inception$param_set$values
 ps$validation_split <- 0.2
@@ -58,78 +58,86 @@ ps$spawner <- TRUE
 ps$dtwwarp <- TRUE
 ps$windowslice <- TRUE
 inception$param_set$values <- ps
-# inception$train(gait)
+ps$loss <- "binary_crossentropy"
+# inception$train(pfps)
 # # Can change params in-between
-# inception$transfer(gait)
+# inception$transfer(pfps)
 
 
-fcnet = LearnerClassifKerasFDAFCN$new(
-  id = "fcnet", 
-  architecture = KerasArchitectureFCN$new())
+fcnet = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
 fcnet$predict_type <- "prob"
 ps <- fcnet$param_set$values
 ps$validation_split <- 0.2
 ps$augmentation_ratio <- 0
-ps$filters <- 50L
+ps$filters <- 50
 ps$lr <- exp(-5.6)
 ps$magwarp <- TRUE
 ps$spawner <- TRUE
 ps$dtwwarp <- TRUE
 ps$windowslice <- TRUE
 fcnet$param_set$values <- ps
+ps$loss <- "binary_crossentropy"
 
 inception2 = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
 inception2$predict_type <- "prob"
 ps <- inception$param_set$values
 ps$augmentation_ratio <- 2
 inception2$param_set$values <- ps
+ps$loss <- "binary_crossentropy"
 
 fcnet2 = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
 fcnet2$predict_type <- "prob"
 ps <- fcnet$param_set$values
 ps$augmentation_ratio <- 2
 fcnet2$param_set$values <- ps
+ps$loss <- "binary_crossentropy"
 
 inception4 = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
 inception4$predict_type <- "prob"
 ps <- inception$param_set$values
 ps$augmentation_ratio <- 4
 inception4$param_set$values <- ps
+ps$loss <- "binary_crossentropy"
 
 fcnet4 = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
 fcnet4$predict_type <- "prob"
 ps <- fcnet$param_set$values
 ps$augmentation_ratio <- 4
 fcnet4$param_set$values <- ps
+ps$loss <- "binary_crossentropy"
 
 inception8 = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
 inception8$predict_type <- "prob"
 ps <- inception$param_set$values
 ps$augmentation_ratio <- 8
 inception8$param_set$values <- ps
+ps$loss <- "binary_crossentropy"
 
 fcnet8 = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
 fcnet8$predict_type <- "prob"
 ps <- fcnet$param_set$values
 ps$augmentation_ratio <- 8
 fcnet8$param_set$values <- ps
+ps$loss <- "binary_crossentropy"
 
 inception12 = LearnerClassifKerasFDAInception$new(id = "inception", architecture = KerasArchitectureInceptionNet$new())
 inception12$predict_type <- "prob"
 ps <- inception$param_set$values
 ps$augmentation_ratio <- 12
 inception12$param_set$values <- ps
+ps$loss <- "binary_crossentropy"
 
 fcnet12 = LearnerClassifKerasFDAFCN$new(id = "fcnet", architecture = KerasArchitectureFCN$new())
 fcnet12$predict_type <- "prob"
 ps <- fcnet$param_set$values
 ps$augmentation_ratio <- 12
 fcnet12$param_set$values <- ps
+ps$loss <- "binary_crossentropy"
 
 #----------------------------------------------------------------------
 # Define Resampling
 set.seed(123)
-resampling = rsmp("cv", folds = 10)
+resampling = rsmp("cv", folds = 3)
 
 # -------------------------- Set Up Image TL  ------------------------
 
@@ -166,12 +174,12 @@ logreg = as_learner( po("flatfunct") %>>% po("learner", lrn("classif.glmnet"), l
 logreg$predict_type <- c("prob")
 
 # -------------------------- Train ------------------------
-learners <- list (fcnet, fcnet2, fcnet4, fcnet8, fcnet12,
-                  inception, inception2, inception4, inception8, inception12,
-                  xgb_at, logreg, tlnet
+learners <- list (#fcnet, fcnet2, fcnet4, fcnet8, fcnet12,
+                  #inception, inception2, inception4, inception8, inception12,
+                  xgb_at, logreg#, tlnet
                   )
 
-design <- benchmark_grid(tasks = gait,
+design <- benchmark_grid(tasks = pfps,
                          learners = learners,
                          resamplings = resampling)
 
@@ -180,5 +188,5 @@ bmr <- benchmark(design,
                  store_backends = FALSE,
                  encapsulate = "none")
 
-saveRDS(bmr, file="output/final_result_pfps.RDS")
+saveRDS(bmr, file="output/final_result_bin.RDS")
 
