@@ -165,6 +165,7 @@ learners <- list (fcnet, fcnet2, fcnet4, fcnet8, fcnet12,
                   inception, inception2, inception4, inception8, inception12,
                   xgb_at, logreg, tlnet)
 
+learners = list(xgb_at)
 design <- benchmark_grid(tasks = gait,
                          learners = learners,
                          resamplings = resampling)
