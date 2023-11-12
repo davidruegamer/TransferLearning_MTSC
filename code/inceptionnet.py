@@ -90,12 +90,17 @@ class Classifier_INCEPTION:
 
         gap_layer = keras.layers.GlobalAveragePooling1D()(x)
 
-        output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
+        if nb_classes > 2:
+          output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
+          model = keras.models.Model(inputs=input_layer, outputs=output_layer)
+          model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(self.lr),
+                        metrics=['accuracy'])
+        else:
+          output_layer = keras.layers.Dense(1, activation='sigmoid')(gap_layer)
+          model = keras.models.Model(inputs=input_layer, outputs=output_layer)
+          model.compile(loss='binary_crossentropy', optimizer=keras.optimizers.Adam(self.lr),
+                        metrics=['accuracy'])
 
-        model = keras.models.Model(inputs=input_layer, outputs=output_layer)
-
-        model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(self.lr),
-                      metrics=['accuracy'])
 
         file_path = self.output_directory + 'best_model.hdf5'
         
@@ -133,10 +138,8 @@ class Classifier_INCEPTION:
         	self.model.save(self.output_directory + 'last_model.hdf5')
 
         # y_pred = self.predict(x_val, y_true, x_train, y_train, y_val, return_df_metrics=False)
-
         # save predictions
         #np.save(self.output_directory + 'y_pred.npy', y_pred)
-
         # convert the predicted from binary to integer
         # y_pred = np.argmax(y_pred, axis=1)
 

@@ -35,12 +35,16 @@ class Classifier_FCN:
 
 		gap_layer = keras.layers.GlobalAveragePooling1D()(conv3)
 
-		output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
-
-		model = keras.models.Model(inputs=input_layer, outputs=output_layer)
-
-		model.compile(loss='categorical_crossentropy', optimizer = keras.optimizers.Adam(lr = lr), 
-			metrics=['accuracy'])
+    if (nb_classes > 2):
+  		output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
+  		model = keras.models.Model(inputs=input_layer, outputs=output_layer)
+  		model.compile(loss='categorical_crossentropy', optimizer = keras.optimizers.Adam(lr = lr), 
+  			metrics=['accuracy'])
+		else:
+			output_layer = keras.layers.Dense(1, activation='sigmoid')(gap_layer)
+  		model = keras.models.Model(inputs=input_layer, outputs=output_layer)
+  		model.compile(loss='binary_crossentropy', optimizer = keras.optimizers.Adam(lr = lr), 
+  			metrics=['accuracy'])
 
 		reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50, 
 			min_lr=0.0001)
