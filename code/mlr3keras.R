@@ -62,7 +62,6 @@ build_fcnet = function(task, pars) {
     nclasses = length(levels(task$truth()))
     fcn = import_from_path("fcn", path = "code/")
 
-    print(pars$filters, pars$lr)
     fcn$Classifier_FCN(
       output_directory = output_directory,
       input_shape = as.integer(inp_shape),
