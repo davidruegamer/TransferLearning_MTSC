@@ -10,7 +10,7 @@ bmr <- readRDS("output/final_result_pfps.RDS")
 measures <- list (msr("classif.acc"),
                   msr("classif.logloss"),
                   msr("classif.auc"),
-                  msr("classif.mbrier"))
+                  msr("classif.bbrier"))
 
 resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
   as.data.frame() %>%
@@ -33,12 +33,12 @@ resample_perf <- resample_perf %>%
     learner_id = replace(learner_id, learner_id=="classif.keras", "Transfer Learned Imagenet")
   )
 
-resample_perf <- resample_perf %>% pivot_longer(classif.acc:classif.mbrier)
+resample_perf <- resample_perf %>% pivot_longer(classif.acc:classif.bbrier)
 resample_perf <- resample_perf %>% mutate(metric = recode(name,
                                                           classif.acc = "Accuracy",
                                                           classif.logloss = "Log-loss",
                                                           classif.auc = "Area under ROC",
-                                                          classif.mbrier = "Multiclass Brier Score"
+                                                          classif.bbrier = "Brier Score"
 )
 )
 
@@ -61,5 +61,5 @@ ggplot(resample_perf %>% dplyr::select(learner_id, value, iteration, metric),
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   guides(fill="none")
 
-ggsave(width=6, height=5, file="results_pfps.pdf")
+ggsave(width=6, height=5, file="output/results_pfps.pdf")
 
