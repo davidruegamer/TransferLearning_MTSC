@@ -1,6 +1,5 @@
 import tensorflow.keras as keras
 import tensorflow as tf
-import numpy as np
 import time
 
 class Classifier_INCEPTION:
@@ -33,7 +32,7 @@ class Classifier_INCEPTION:
             if (verbose == True):
                 self.model.summary()
             if (self.save == True):
-            	self.model.save_weights(self.output_directory + 'model_init.hdf5')
+                self.model.save_weights(self.output_directory + 'model_init.hdf5')
 
     def _inception_module(self, input_tensor, stride=1, activation='linear'):
 
@@ -105,8 +104,8 @@ class Classifier_INCEPTION:
         file_path = self.output_directory + 'best_model.hdf5'
         
         if (self.save == True):
-        	model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss', save_best_only=True)
-        	self.callbacks = self.callbacks + [model_checkpoint]
+            model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss', save_best_only=True)
+            self.callbacks = self.callbacks + [model_checkpoint]
 
         return model
 
@@ -124,10 +123,10 @@ class Classifier_INCEPTION:
         start_time = time.time()
         
         if x_val is None or y_val is None:
-        	val_data = None
-        	self.callbacks = self.callbacks[1:] # no early stopping
+            val_data = None
+            self.callbacks = self.callbacks[1:] # no early stopping
         else:
-        	val_data = (x_val, y_val)
+            val_data = (x_val, y_val)
 
         hist = self.model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epochs,
                               verbose=self.verbose, validation_data=val_data, callbacks=self.callbacks)
@@ -135,7 +134,7 @@ class Classifier_INCEPTION:
         duration = time.time() - start_time
 
         if (self.save == True):
-        	self.model.save(self.output_directory + 'last_model.hdf5')
+            self.model.save(self.output_directory + 'last_model.hdf5')
 
         # y_pred = self.predict(x_val, y_true, x_train, y_train, y_val, return_df_metrics=False)
         # save predictions
@@ -153,9 +152,9 @@ class Classifier_INCEPTION:
     def predict(self, x_test, y_true, x_train, y_train, y_test, return_df_metrics=True):
         start_time = time.time()
         if (self.save == True):
-        	model_path = self.output_directory + 'best_model.hdf5'
-        	model = keras.models.load_model(model_path)
+            model_path = self.output_directory + 'best_model.hdf5'
+            model = keras.models.load_model(model_path)
         else:
-        	model = self.model
+            model = self.model
         y_pred = model.predict(x_test, batch_size=self.batch_size)
         return y_pred
