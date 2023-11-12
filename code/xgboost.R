@@ -223,9 +223,9 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
       y_d_test = label[val$test]
 
 
-      aug_pars = c("augmentation_ratio", "jitter", "scaling", "permutation", "randompermutation", 
-        "magwarp", "timewarp", "windowslice", "windowwarp", "rotation", 
-        "spawner", "dtwwarp", "shapedtwwarp", "wdba", "discdtw", "discsdtw", 
+      aug_pars = c("augmentation_ratio", "jitter", "scaling", "permutation", "randompermutation",
+        "magwarp", "timewarp", "windowslice", "windowwarp", "rotation",
+        "spawner", "dtwwarp", "shapedtwwarp", "wdba", "discdtw", "discsdtw",
         "center", "scale"
       )
 
@@ -269,7 +269,7 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
       if (is.null(pv$objective)) {
         pv$objective = ifelse(nlvls == 2L, "binary:logistic", "multi:softprob")
       }
-      
+
       newdata = task$data(cols = task$feature_names)
       inp_shape = functional_input_shape(task)
       nobs = nrow(newdata)
@@ -282,13 +282,13 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
       newdata = xgb.DMatrix(data = X)
 
       pred = invoke(predict, model, newdata = newdata, .args = pv)
-
       if (nlvls == 2L) { # binaryclass
         if (pv$objective == "multi:softprob") {
           prob = matrix(pred, ncol = nlvls, byrow = TRUE)
           colnames(prob) = lvls
         } else {
-          prob = pvec2mat(pred, lvls)
+          prob= matrix(pred, ncol=2,byrow=TRUE)
+          # prob = pvec2mat(pred, lvls)
         }
       } else { # multiclass
         if (pv$objective == "multi:softmax") {
@@ -335,3 +335,10 @@ LearnerClassifXgboostFDA = R6::R6Class("LearnerClassifXgboostFDA",
     }
   )
 )
+
+pvec2mat = function(p, levs) {
+  stopifnot(is.numeric(p))
+  y = matrix(c(1 - p, p), ncol = 2L, nrow = length(p))
+  colnames(y) = levs
+  y
+}
