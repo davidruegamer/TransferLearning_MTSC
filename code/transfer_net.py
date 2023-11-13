@@ -12,9 +12,13 @@ def load_freeze_transfer(output_directory_old, new_nb_classes, lr = 0.00001):
 	  model_new.add(layer)
   for layer in model_new.layers:
     layer.trainable = False
-  model_new.add(keras.layers.Dense(new_nb_classes, activation='softmax'))
-    
-  model_new.compile(loss='categorical_crossentropy', optimizer = keras.optimizers.Adam(lr = lr), 
-		metrics=['accuracy'])
+  if new_nb_classes > 2:
+    model_new.add(keras.layers.Dense(new_nb_classes, activation='softmax'))
+    model_new.compile(loss='categorical_crossentropy', optimizer = keras.optimizers.Adam(lr = lr), 
+  		metrics=['accuracy'])
+  else:
+  	model_new.add(keras.layers.Dense(1, activation='sigmoid'))
+    model_new.compile(loss='binary_crossentropy', optimizer = keras.optimizers.Adam(lr = lr), 
+  		metrics=['accuracy'])
 
   return model_new
