@@ -118,7 +118,7 @@ ggsave(width=8, height=5, file="results_TL.pdf")
 ggplot(res_TL %>% filter(
   metric %in% c("Log-loss")
 ), aes(x = dataset, y = value, fill = augx)) +
-  geom_boxplot() + 
+  geom_boxplot() +
   theme_bw() + theme() + xlab("") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   guides(fill="none")
@@ -128,7 +128,7 @@ ggsave(width=8, height=5, file="results_TL_logloss.pdf")
 ggplot(res_TL %>% filter(
   !metric %in% c("Weighted Multiclass AUC (1vsAll)", "Average Multiclass AUC (1vsAll)")
 ), aes(x = augx, y = value, fill = dataset)) +
-  geom_boxplot() + facet_wrap(~metric, scales="free_y") + 
+  geom_boxplot() + facet_wrap(~metric, scales="free_y") +
   theme_bw() + theme() + xlab("") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   guides(fill="none")
@@ -140,17 +140,17 @@ ggplot(res_TL %>% filter(
 
   filter(dataset==bestDataset[1]) %>%
 
-# bestDataset <- res_TL %>% group_by(dataset, metric, augx) %>% 
-#   summarize(value = mean(value)) %>% filter(metric=="Balanced Accuracy") %>% 
-#   arrange(-value) %>% pull(dataset, augx)
-# 
-# perf_TL <- res_TL %>% 
-#   filter(dataset==bestDataset[2]) %>% 
-#   dplyr::select(metric, value, iter) %>% 
-#   rename(iteration = iter)
+bestDataset <- res_TL %>% group_by(dataset, metric, augx) %>%
+  summarize(value = mean(value)) %>% filter(metric=="Balanced Accuracy") %>%
+  arrange(-value) %>% pull(dataset, augx)
 
-perf_TL <- res_TL %>% 
-  rename(iteration = iter) %>% 
+perf_TL <- res_TL %>%
+  filter(dataset==bestDataset[2]) %>%
+  dplyr::select(metric, value, iter) %>%
+  rename(iteration = iter)
+
+perf_TL <- res_TL %>%
+  rename(iteration = iter) %>%
   mutate(
     learner_id = paste0("Transfer Learned UCR (Augm. x", augx, ")")
   )

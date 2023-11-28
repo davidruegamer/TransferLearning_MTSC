@@ -17,13 +17,13 @@ measures <- list (msr("classif.acc"),
 # for manual evaluation
 measures_man <- function(truth, probmat)
 {
-  
+
   c(Metrics:::accuracy(truth, 1*(probmat>0.5)),
     Metrics:::logLoss(truth, probmat),
     Metrics:::auc(truth, probmat),
     Metrics:::mse(truth, probmat)
   )
-  
+
 }
 
 resample_perf <- as.data.table (bmr$score(measures = measures)) %>%
@@ -54,24 +54,73 @@ resample_perf <- resample_perf %>% mutate(metric = recode(name,
                                                           classif.auc = "Area under ROC",
                                                           classif.bbrier = "Brier Score"
 )
-)
+) %>%
+  dplyr::select (-c(nr, task_id, resampling_id, name))
 
-resample_perf$learner_id <- factor(resample_perf$learner_id,
-                                   levels =
-                                     c("FCNet (Augm. x0)", "FCNet (Augm. x2)", "FCNet (Augm. x4)",
-                                       "FCNet (Augm. x8)", "FCNet (Augm. x12)", "InceptionTime (Augm. x0)",
-                                       "InceptionTime (Augm. x2)", "InceptionTime (Augm. x4)",
-                                       "InceptionTime (Augm. x8)", "InceptionTime (Augm. x12)",
-                                       "Transfer Learned Imagenet",
-                                       "XGBoost (tuned)", "Multinomial Logistic Regression"
-                                     )
-)
+bmr_time_aug <- readRDS("output/resultTL_AUG_pfps.RDS")
+bmr_time_aug <- bmr_time_aug %>%
+  group_by(metric, iter, augx) %>%
+  summarise (value = mean (value, na.rm = TRUE))%>%
+  rename(iteration = iter,
+         learner_id = augx) %>%
+  mutate (learner_id = case_when(
+    learner_id == "0" ~ "Transfer Learned UCR (Augm. x0)",
+    learner_id == "2" ~ "Transfer Learned UCR (Augm. x2)",
+    learner_id == "4" ~ "Transfer Learned UCR (Augm. x4)",
+    learner_id == "8" ~ "Transfer Learned UCR (Augm. x8)",
+    TRUE ~ "Transfer Learned UCR (Augm. x12)",
+  )) %>%
+  mutate (iteration = as.numeric (iteration))
+
+resample_perf_pfps <- bind_rows (resample_perf, bmr_time_aug)
+
+
+new_lvls <- c("mLogReg",
+              "XG",
+              "FCN(x0)",
+              "FCN(x2)",
+              "FCN(x4)",
+              "FCN(x8)",
+              "FCN(x12)",
+              "IncTime(x0)",
+              "IncTime(x2)",
+              "IncTime(x4)",
+              "IncTime(x8)",
+              "IncTime(x12)",
+              "Transfer Learned UCR (Augm. x0)",
+              "Transfer Learned UCR (Augm. x2)",
+              "Transfer Learned UCR (Augm. x4)",
+              "Transfer Learned UCR (Augm. x8)",
+              "Transfer Learned UCR (Augm. x12)",
+              "TL Imagenet")
+
+new_lvls_names <- c("mLogReg",
+                    "XG",
+                    "FCN(x0)",
+                    "FCN(x2)",
+                    "FCN(x4)",
+                    "FCN(x8)",
+                    "FCN(x12)",
+                    "IncTime(x0)",
+                    "IncTime(x2)",
+                    "IncTime(x4)",
+                    "IncTime(x8)",
+                    "IncTime(x12)",
+                    "TL UCR (x0)",
+                    "TL UCR (x2)",
+                    "TL UCR (x4)",
+                    "TL UCR (x8)",
+                    "TL UCR (x12)",
+                    "TL Imagenet")
+
+resample_perf_pfps$learner_id <- factor(resample_perf_pfps$learner_id,
+                                   levels = new_lvls, labels = new_lvls_names)
 
 ### load TL results
 if(!file.exists("output/resultTL_AUG_pfps.RDS")){
   lf <- list.files("output/TL_AUG", full.names = T, pattern = ".*_pfps\\.csv")
   res_TL <- do.call("rbind", lapply(lf, function(fln){
-    
+
     rr <- read.csv(fln)[,-1]
     rres <- measures_man(rr$truth, rr$prob)
     return(data.frame(
@@ -81,7 +130,7 @@ if(!file.exists("output/resultTL_AUG_pfps.RDS")){
       iter = gsub("output/TL_AUG/(.*)\\_aug\\_x(.*)\\_fold\\_([0-9])_pfps\\.csv", "\\3", fln),
       augx = gsub("output/TL_AUG/(.*)\\_aug\\_x(.*)\\_fold\\_([0-9])_pfps\\.csv", "\\2", fln)
     ))
-    
+
   }))
   saveRDS(res_TL, "output/resultTL_AUG_pfps.RDS")
 }else{
@@ -101,7 +150,7 @@ ggsave(width=8, height=5, file="results_TL_pfps.pdf")
 ggplot(res_TL %>% filter(
   metric %in% c("Log-loss")
 ), aes(x = dataset, y = value, fill = augx)) +
-  geom_boxplot() + 
+  geom_boxplot() +
   theme_bw() + theme() + xlab("") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   guides(fill="none")
@@ -109,7 +158,7 @@ ggplot(res_TL %>% filter(
 ggsave(width=8, height=5, file="results_TL_logloss_pfps.pdf")
 
 ggplot(res_TL, aes(x = augx, y = value, fill = dataset)) +
-  geom_boxplot() + facet_wrap(~metric, scales="free_y") + 
+  geom_boxplot() + facet_wrap(~metric, scales="free_y") +
   theme_bw() + theme() + xlab("") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   guides(fill="none")
@@ -124,21 +173,21 @@ ggplot(res_TL %>% filter(
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   guides(colour="none")
 
-res_TL %>% group_by(dataset, metric) %>% 
-  summarize(value = mean(value)) %>% 
+res_TL %>% group_by(dataset, metric) %>%
+  summarize(value = mean(value)) %>%
   ggplot(aes(x = metric, y = value)) + geom_boxplot()
 
-agg_res_TL <- res_TL %>% group_by(dataset, metric, augx) %>% 
+agg_res_TL <- res_TL %>% group_by(dataset, metric, augx) %>%
   summarize(value = mean(value))
 
-ggplot(agg_res_TL %>% pivot_wider(names_from = c(metric), 
-                                  values_from = value), 
-       aes(x=`Accuracy`, y=-`Log-loss`, colour = augx)) + 
+ggplot(agg_res_TL %>% pivot_wider(names_from = c(metric),
+                                  values_from = value),
+       aes(x=`Accuracy`, y=-`Log-loss`, colour = augx)) +
   geom_point() + theme_bw()
 
 
-perf_TL <- res_TL %>% 
-  rename(iteration = iter) %>% 
+perf_TL <- res_TL %>%
+  rename(iteration = iter) %>%
   mutate(
     learner_id = paste0("Transfer Learned UCR (Augm. x", augx, ")")
   )
@@ -152,22 +201,27 @@ perf_TL$learner_id <- factor(perf_TL$learner_id,
 )
 
 ### check correlation between metrics
-# resample_perf %>% 
-#   select(-name) %>% 
-#   pivot_wider(names_from = metric, values_from = value) %>% 
-#   select(Accuracy:`Brier Score`) %>% 
-#   rename(ACC = Accuracy, 
+# resample_perf %>%
+#   select(-name) %>%
+#   pivot_wider(names_from = metric, values_from = value) %>%
+#   select(Accuracy:`Brier Score`) %>%
+#   rename(ACC = Accuracy,
 #          AUC = `Area under ROC`,
-#          MBS = `Brier Score`) %>%  
+#          MBS = `Brier Score`) %>%
 #   cor %>% corrplot(
 #     method = 'square', order = 'AOE', addCoef.col = 'black', tl.pos = 'd',
 #     cl.pos = 'n' #, col = COL2('BrBG')
 #   )
 
 ### check metrics
-ggplot(resample_perf %>% dplyr::select(learner_id, value, iteration, metric) %>% 
-         rbind(perf_TL %>% select(learner_id, value, iteration, metric)), 
+<<<<<<< Updated upstream
+ggplot(resample_perf %>% dplyr::select(learner_id, value, iteration, metric) %>%
+         rbind(perf_TL %>% select(learner_id, value, iteration, metric)),
        aes(x = learner_id, y = value, fill = learner_id)) +
+=======
+ggplot(resample_perf %>% dplyr::select(learner_id, value, iteration, metric),
+       aes(x = learner_id, y = value)) +
+>>>>>>> Stashed changes
   geom_boxplot() + facet_wrap(~ metric, scales = "free_y") +
   theme_bw() + theme() + xlab("") +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
@@ -176,43 +230,43 @@ ggplot(resample_perf %>% dplyr::select(learner_id, value, iteration, metric) %>%
 ggsave(width=9, height=5, file="results_pfps.pdf")
 
 # alpha=0.25
-# 
-# med_lr <- resample_perf %>% dplyr::select(learner_id, value, iteration, metric) %>% 
-#   filter(learner_id == "Multinomial Logistic Regression") %>% 
+#
+# med_lr <- resample_perf %>% dplyr::select(learner_id, value, iteration, metric) %>%
+#   filter(learner_id == "Multinomial Logistic Regression") %>%
 #   filter(
 #     metric %in% c("Log-loss", "Accuracy")
-#   ) %>% 
-#   group_by(metric) %>% 
+#   ) %>%
+#   group_by(metric) %>%
 #   summarise(median(value)) %>% c
-# 
+#
 # perf_TL_best <- perf_TL
-# 
+#
 # perf_TL_best[perf_TL_best$metric=="Log-loss","value"] <-
 #   - perf_TL_best[perf_TL_best$metric=="Log-loss","value"]
-# 
-# perf_TL_best <- 
-#   perf_TL_best %>% group_by(learner_id, metric, iteration) %>% 
+#
+# perf_TL_best <-
+#   perf_TL_best %>% group_by(learner_id, metric, iteration) %>%
 #   summarise(value = max(value))
-# 
+#
 # perf_TL_best[perf_TL_best$metric=="Log-loss","value"] <-
 #   - perf_TL_best[perf_TL_best$metric=="Log-loss","value"]
-# 
-# cross_data <- resample_perf %>% 
-#   dplyr::select(learner_id, value, iteration, metric) %>% 
-#   rbind(perf_TL_best) %>% 
+#
+# cross_data <- resample_perf %>%
+#   dplyr::select(learner_id, value, iteration, metric) %>%
+#   rbind(perf_TL_best) %>%
 #   filter(
 #     metric %in% c("Log-loss", "Accuracy")
-#   ) %>% 
-#   pivot_wider(names_from = metric, values_from = value) %>% 
-#   group_by(learner_id) %>% 
-#   summarise(ymin = quantile(`Accuracy`, alpha), 
+#   ) %>%
+#   pivot_wider(names_from = metric, values_from = value) %>%
+#   group_by(learner_id) %>%
+#   summarise(ymin = quantile(`Accuracy`, alpha),
 #             ymax = quantile(`Accuracy`, 1-alpha),
 #             xmin = -quantile(`Log-loss`, alpha),
 #             xmax = -quantile(`Log-loss`, 1-alpha),
 #             ymean = median(`Accuracy`),
-#             xmean = -median(`Log-loss`)) %>% 
-#   mutate(xmax = pmax(xmax, -1.75)) 
-# 
+#             xmean = -median(`Log-loss`)) %>%
+#   mutate(xmax = pmax(xmax, -1.75))
+#
 # ggplot() +
 #   geom_rect(data = data.frame(x = 0, y = 0),
 #             aes(xmin=-1.8, xmax=-med_lr[[2]][2],
@@ -223,6 +277,6 @@ ggsave(width=9, height=5, file="results_pfps.pdf")
 #   ylab("Accuracy") + xlab("Negative Log-loss") +
 #   theme_bw() +
 #   theme(legend.title = element_blank())
-# 
+#
 # ggsave(width=6, height=5, file="results2_pfps.pdf")
 
